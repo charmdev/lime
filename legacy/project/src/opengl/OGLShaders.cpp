@@ -133,6 +133,7 @@ void OGLProg::recreate()
 
    mTransformSlot = glGetUniformLocation(mProgramId, "uTransform");
    mImageSlot = glGetUniformLocation(mProgramId, "uImage0");
+   mAlphaSlot = glGetUniformLocation(mProgramId, "uImage1"); //kukuruz
    mColourOffsetSlot = glGetUniformLocation(mProgramId, "uColourOffset");
    mColourScaleSlot = glGetUniformLocation(mProgramId, "uColourScale");
    mFXSlot = glGetUniformLocation(mProgramId, "mFX");
@@ -143,6 +144,10 @@ void OGLProg::recreate()
    glUseProgram(mProgramId);
    if (mImageSlot>=0)
       glUniform1i(mImageSlot,0);
+      
+   //kukuruz
+   if (mAlphaSlot>=0)
+      glUniform1i(mAlphaSlot,1); 
 }
 
 bool OGLProg::bind()
@@ -324,6 +329,11 @@ GPUProg *GPUProg::create(unsigned int inID)
 
          if (inID & PROG_ALPHA_TEXTURE)
             fragColour += "vec4(1,1,1,texture2D(uImage0,vTexCoord).a)";
+         else if (inID & DRAW_SEP_ALPHA) //kukuruz
+         {
+            pixelVars += "uniform sampler2D uImage1;\n";
+            fragColour += "vec4(texture2D(uImage0,vTexCoord).xyz, texture2D(uImage1,vTexCoord).x)";
+         }   
          else
             fragColour += "texture2D(uImage0,vTexCoord)";
       }

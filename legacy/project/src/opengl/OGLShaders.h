@@ -40,6 +40,7 @@ public:
    // int colourSlot;
 
    GLint     mImageSlot;
+   GLint     mAlphaSlot; //kukuruz
    GLint     mColourArraySlot;
    GLint     mColourScaleSlot;
    GLint     mColourOffsetSlot;

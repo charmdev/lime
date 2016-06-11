@@ -13,6 +13,9 @@
 #include <android/log.h>
 #endif
 
+//kukuruz
+#include <OBB.h>
+
 #include <Utils.h>
 #include <nme/NmeCffi.h>
 #include <Display.h>
@@ -3643,6 +3646,181 @@ value nme_bitmap_data_load(value inFilename, value format)
    return alloc_null();
 }
 DEFINE_PRIM(nme_bitmap_data_load,2);
+
+//kukuruz: compressed texture request =======================================================
+value nme_get_zip(value pathName)
+{
+    OBB* obb;
+    
+#ifdef HX_WINDOWS
+    const wchar_t* str = val_os_string(pathName);
+    int length = wcslen( str );
+    char* buff = new char[length];
+    wcstombs( buff, str, sizeof( buff ));
+    obb = OBB::OpenOBB( buff );
+    delete buff;
+#else
+    obb = OBB::OpenOBB(val_os_string(pathName));
+#endif
+    
+	if(obb)
+	{
+		value result = ObjectToAbstract(obb);
+		return result;
+	}
+	return alloc_null();
+}
+DEFINE_PRIM(nme_get_zip,1);
+
+value nme_check_file_exist_in_zip(value zipHandle, value filename)
+{
+    bool setCurFile;
+	OBB *obb;
+	if (AbstractToObject(zipHandle, obb))
+    {
+#ifdef HX_WINDOWS
+        const wchar_t* str = val_os_string(filename);
+        int length = wcslen( str );
+        char* buff = new char[length];
+        wcstombs( buff, str, sizeof( buff ));
+        setCurFile = obb->SetCurrentFile(buff);
+        delete buff;
+#else
+        setCurFile = obb->SetCurrentFile(val_os_string(filename));
+#endif
+    }
+		
+    return alloc_bool(setCurFile);
+}
+DEFINE_PRIM(nme_check_file_exist_in_zip,2);
+
+value nme_bitmap_data_load_from_zip(value zipHandle, value filename)
+{
+    bool setCurFile;
+	OBB *obb;
+	if ( AbstractToObject(zipHandle, obb) )
+	{
+#ifdef HX_WINDOWS
+        const wchar_t* str = val_os_string(filename);
+        int length = wcslen( str );
+        char* buff = new char[length];
+        wcstombs( buff, str, sizeof( buff ));
+        setCurFile = obb->SetCurrentFile(buff);
+        delete buff;
+#else
+        setCurFile = obb->SetCurrentFile(val_os_string(filename));
+#endif
+        if( setCurFile )
+        {
+            int fileSize = obb->GetCurrentFileSize();
+            if (fileSize > 0)
+            {
+                unsigned char* data = obb->GetDataFromCurrentFile(fileSize);
+                Surface *surface = Surface::LoadFromBytes(data, fileSize);
+                
+                value result = ObjectToAbstract(surface);
+                surface->DecRef();
+                
+                return result;
+            }
+        }	
+	} 
+	
+	return alloc_null();
+}
+DEFINE_PRIM(nme_bitmap_data_load_from_zip,2);
+
+value nme_text_load_from_zip(value zipHandle, value filename)
+{
+    bool setCurFile;
+	OBB *obb;
+	if ( AbstractToObject(zipHandle, obb) )
+	{
+#ifdef HX_WINDOWS
+        const wchar_t* str = val_os_string(filename);
+        int length = wcslen( str );
+        char* buff = new char[length];
+        wcstombs( buff, str, sizeof( buff ));
+        setCurFile = obb->SetCurrentFile(buff);
+        delete buff;
+#else
+        setCurFile = obb->SetCurrentFile(val_os_string(filename));
+#endif
+        if( setCurFile )
+        {
+            int fileSize = obb->GetCurrentFileSize();
+            if (fileSize > 0)
+            {
+                unsigned char* data = obb->GetDataFromCurrentFile(fileSize + 1);
+                data[fileSize] = '\0';
+                
+                value result = alloc_string((const char*) data);
+                
+                return result;
+            }
+        }	
+	}
+	
+	 return alloc_null();
+}
+DEFINE_PRIM(nme_text_load_from_zip,2);
+
+value nme_compressed_texture_load(value inFilename)
+{
+   Surface *surface = Surface::LoadCompressed(val_os_string(inFilename));
+   if (surface)
+   {
+      value result = ObjectToAbstract(surface);
+      surface->DecRef();
+         
+      return result;
+   }
+   return alloc_null();
+}
+DEFINE_PRIM(nme_compressed_texture_load,1);
+
+value nme_compressed_texture_separate_alpha_load(value inFilename, value alphaName)
+{
+   Surface *surface = CompressedSurface::LoadCompressed(val_os_string(inFilename), val_os_string(alphaName));
+   if (surface)
+   {
+      value result = ObjectToAbstract(surface);
+      surface->DecRef();
+         
+      return result;
+   }
+   return alloc_null();
+}
+DEFINE_PRIM(nme_compressed_texture_separate_alpha_load,2);
+
+value nme_get_gl_texture_id_from_lime_surface(value inHandle)
+{
+  Surface *surface;
+  if (AbstractToObject(inHandle,surface))
+    return alloc_int(surface -> getTextureId());
+
+  return alloc_int(0);
+}
+
+value nme_get_gl_texture_width_from_lime_surface(value inHandle)
+{
+  Surface *surface;
+  if (AbstractToObject(inHandle,surface))
+    return alloc_int(surface -> getTextureWidth());
+
+  return alloc_int(0);
+}
+
+value nme_get_gl_texture_height_from_lime_surface(value inHandle)
+{
+  Surface *surface;
+  if (AbstractToObject(inHandle,surface))
+    return alloc_int(surface -> getTextureHeight());
+
+  return alloc_int(0);
+}
+
+//========================================================================================
 
 value nme_bitmap_data_set_format(value inHandle, value format)
 {

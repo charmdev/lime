@@ -22,6 +22,11 @@ public:
 
    virtual void Dirty(const Rect &inRect) = 0;
    virtual bool IsCurrentVersion() = 0;
+   
+   //kukuruz: solution for get id, width or height of opengl texture
+   virtual int getTextureId() { return 0; }
+   virtual int getTextureWidth() { return 0; }
+   virtual int getTextureHeight() { return 0; }
 };
 
 

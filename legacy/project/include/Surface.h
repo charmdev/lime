@@ -10,6 +10,11 @@
 #include <nme/Texture.h>
 #include <nme/ImageBuffer.h>
 
+//kukuruz ==================================
+#include <pvrt/PVRTGlobal.h>
+#include <pvrt/PVRTTexture.h>
+//=========================================
+
 // ---- Surface API --------------
 
 namespace nme
@@ -27,11 +32,22 @@ class Surface : public ImageBuffer
 {
 public:
    // Non-PO2 will generate dodgy repeating anyhow...
-   Surface() : mTexture(0), mVersion(0), mFlags(surfNotRepeatIfNonPO2), mAllowTrans(true) { };
-
+   Surface() :  mTexture(0), mVersion(0), mFlags(surfNotRepeatIfNonPO2), mAllowTrans(true)
+                , /* kukuruz */ mCompressed(false) { };
+   
    // Implementation depends on platform.
    static Surface *Load(const OSChar *inFilename);
    static Surface *LoadFromBytes(const uint8 *inBytes,int inLen);
+   
+   //kukuruz:
+   static Surface *LoadCompressed(const OSChar *inFilename);
+   static Surface *LoadCompressed(const OSChar *inFilename, const OSChar *inAlphaname);
+
+   int getTextureId();
+   int getTextureWidth();
+   int getTextureHeight();
+   //=============================================================================  
+
    bool Encode( nme::ByteArray *outBytes,bool inPNG,double inQuality);
 
    Surface *IncRef() { mRefCount++; return this; }
@@ -91,13 +107,18 @@ public:
 
    int Version() const  { return mVersion; }
 
-
+   //kukuruz
+   bool isCompressed() { return mCompressed; }
+   
 protected:
    mutable int   mVersion;
    Texture       *mTexture;
    virtual       ~Surface();
    unsigned int  mFlags;
    bool          mAllowTrans;
+   
+   //kukuruz:
+   bool mCompressed;
 };
 
 // Helper class....
@@ -229,6 +250,80 @@ public:
    private:
       HardwareRenderer *mHardware;
 };
+
+
+
+
+//kukuruz: special CompressedTexture class =============================================
+
+class CompressedSurface : public Surface
+{
+public:
+   CompressedSurface( int inWidth,int inHeight);
+   
+   int Width() const  { return mWidth; }
+   int Height() const  { return mHeight; }
+
+   uint32 getPixel(int inX,int inY) { return 0; }
+
+   void Clear(uint32 inColour,const Rect *inRect=0) { }
+   RenderTarget BeginRender(const Rect &inRect,bool inForHitTest=false) { return RenderTarget(); }
+   void EndRender() { }
+
+   void BlitTo(const RenderTarget &outTarget, const Rect &inSrcRect,int inPosX, int inPosY, BlendMode inBlend, 
+               const BitmapCache *inMask,
+               uint32 inTint=0xffffff ) const { }
+
+   void StretchTo(const RenderTarget &outTarget,
+                  const Rect &inSrcRect, const DRect &inDestRect) const { }
+
+   void BlitChannel( const RenderTarget &outTarget, const Rect &inSrcRect,
+                     int inPosX, int inPosY,
+                     int inSrcChannel, int inDestChannel ) const { }
+
+   const uint8 *GetBase() const { return 0; }
+   int GetStride() const { return 0; }
+   uint8       *Edit(const Rect *inRect=0) { return 0; }
+   void        Commit() { }
+   PixelFormat Format()  const { return pfRGB565; }
+
+   void dispose();
+   void MakeTextureOnly();
+   void ClearBuffs();
+   
+   void AttachData(PVRTextureHeaderV3& sTextureHeader, uint8 *data);
+   void AttachAlpha(PVRTextureHeaderV3& sAlphaHeader, uint8 *alpha);
+
+   bool hasSepAlpha() { return mSepAlpha; }
+
+   uint8* getData() { return mData; }
+   int getDataSize() { return mDataSize; }
+   int getDataFormat() { return mDataFormat; }
+
+   uint8* getAlpha() { return mAlpha; }
+   int getAlphaSize() { return mAlphaSize; }
+   int getAlphaFormat() { return mAlphaFormat; }
+
+protected:
+    ~CompressedSurface();
+
+   int mWidth;
+   int mHeight;
+
+   bool mSepAlpha;
+
+   uint8 *mData;
+   int mDataSize;
+   int mDataFormat;
+
+   //if separate alpha
+   uint8 *mAlpha;
+   int mAlphaSize;
+   int mAlphaFormat;
+};
+
+
+//==================================================================
 
 
 } // end namespace nme

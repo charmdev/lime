@@ -207,6 +207,17 @@
 		<file name="${LEGACY_SRC_DIR}/ExternalInterface.cpp" />
 		<file name="${LEGACY_SRC_DIR}/empty/S3D.cpp" if="LEGACY_S3D" unless="android" />
 		<file name="${LEGACY_SRC_DIR}/common/Surface.cpp" />
+        
+       
+        
+        <!-- kukuruz /-->
+	    <compilerflag value="-I${LEGACY_PROJECT_ROOT}/lib/minizip/" />
+		<file name="${LEGACY_PROJECT_ROOT}/lib/minizip/unzip.c" />
+		<file name="${LEGACY_PROJECT_ROOT}/lib/minizip/ioapi.c" />
+		<file name="${LEGACY_SRC_DIR}/common/CompressedSurface.cpp" />
+        <file name="${LEGACY_SRC_DIR}/common/OBB.cpp" />
+        <!-- kukuruz /-->
+        
 		<file name="${LEGACY_SRC_DIR}/common/Utils.cpp" />
 		<file name="${LEGACY_SRC_DIR}/common/Geom.cpp" />
 		<file name="${LEGACY_SRC_DIR}/common/Graphics.cpp" />

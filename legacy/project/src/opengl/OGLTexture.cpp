@@ -251,7 +251,23 @@ public:
          HardwareRenderer::current->DestroyNativeTexture((void *)(size_t)mTextureID);
       }
    }
+   
+   //kukuruz
+   int getTextureId()
+   {
+     return mTextureID;
+   }
 
+   int getTextureWidth()
+   {
+     return mTextureWidth;
+   }
+
+   int getTextureHeight()
+   {
+     return mTextureHeight;
+   }
+   
    void Bind(int inSlot)
    {
       if (inSlot>=0 && CHECK_EXT(glActiveTexture))
@@ -427,10 +443,117 @@ public:
    bool IsCurrentVersion() { return mContextVersion==gTextureContextVersion; }
 };
 
+//kukuruz
+
+void CreateTexture(GLuint* ID, int format, int width, int height, int size, uint8* data, bool repeat)
+{
+  *ID = 0;
+
+  glGenTextures(1, ID);
+  glBindTexture(GL_TEXTURE_2D, *ID);
+
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, repeat ? GL_REPEAT : GL_CLAMP_TO_EDGE );
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, repeat ? GL_REPEAT : GL_CLAMP_TO_EDGE );
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+  glCompressedTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, size, data);
+}
+
+class OGLCompressedTexture : public Texture
+{
+  GLuint mTextureID;
+  GLuint mAlphaID;
+
+  int mContextVersion;
+
+  int mTextureWidth;
+  int mTextureHeight;
+
+  CompressedSurface *mSurface;
+
+  bool mRepeat;
+
+  public:
+    OGLCompressedTexture(CompressedSurface* inSurface) : mTextureID(0), mAlphaID(0)
+    {
+      mSurface = inSurface;
+      mContextVersion = gTextureContextVersion;
+
+      mTextureWidth = mSurface -> Width();
+      mTextureHeight = mSurface -> Height();
+
+      mRepeat = true;
+
+      CreateTexture(&mTextureID, mSurface -> getDataFormat(), mTextureWidth, mTextureHeight, mSurface -> getDataSize(), mSurface -> getData(), mRepeat);
+      if(mSurface -> hasSepAlpha())
+        CreateTexture(&mAlphaID, mSurface -> getAlphaFormat(), mTextureWidth, mTextureHeight, mSurface -> getAlphaSize(), mSurface -> getAlpha(), mRepeat);
+    }
+
+  ~OGLCompressedTexture()
+  {
+    if (mTextureID && mContextVersion == gTextureContextVersion && HardwareRenderer::current)
+      HardwareRenderer::current -> DestroyNativeTexture((void *)(size_t)mTextureID);
+
+    if (mAlphaID && mContextVersion == gTextureContextVersion && HardwareRenderer::current)
+      HardwareRenderer::current -> DestroyNativeTexture((void *)(size_t)mAlphaID);
+  }
+
+  void Bind(int inSlot)
+  {
+    if (inSlot >= 0 && CHECK_EXT(glActiveTexture))
+    {
+      glActiveTexture(GL_TEXTURE0 + inSlot);
+    }
+    glBindTexture(GL_TEXTURE_2D, mTextureID);
+
+    if (mSurface -> hasSepAlpha())
+    {
+      glActiveTexture(GL_TEXTURE1);
+      glEnable(GL_TEXTURE_2D);
+      glBindTexture(GL_TEXTURE_2D, mAlphaID);
+    }
+  }
+
+  void BindFlags(bool inRepeat, bool inSmooth) 
+  {
+    if (mRepeat != inRepeat)
+    {
+       mRepeat = inRepeat;
+       if (mRepeat)
+       {
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT );
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT );
+       }
+       else
+       {
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
+       }
+    }
+  }
+
+  UserPoint PixelToTex(const UserPoint &inPixels)
+  {
+    return UserPoint(inPixels.x / mTextureWidth, inPixels.y / mTextureHeight);
+  }
+
+  UserPoint TexToPaddedTex(const UserPoint &inTex)
+  {
+    return UserPoint(inTex.x, inTex.y);
+  }
+
+  void Dirty(const Rect &inRect) { }
+
+  bool IsCurrentVersion() { return mContextVersion == gTextureContextVersion; }
+};
 
 Texture *OGLCreateTexture(Surface *inSurface,unsigned int inFlags)
 {
-   return new OGLTexture(inSurface,inFlags);
+   if (!inSurface -> isCompressed())
+    return new OGLTexture(inSurface,inFlags);
+  else
+    return new OGLCompressedTexture((CompressedSurface*) inSurface);
 }
 
 

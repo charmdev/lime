@@ -447,6 +447,10 @@ public:
             progId |= PROG_TEXTURE;
             if (element.mSurface->BytesPP()==1)
                progId |= PROG_ALPHA_TEXTURE;
+               
+            if (element.mSurface->isCompressed())
+               if ( ((CompressedSurface*) element.mSurface)->hasSepAlpha() )
+                    progId |= DRAW_SEP_ALPHA;   
          }
 
          if (element.mFlags & DRAW_HAS_COLOUR)
