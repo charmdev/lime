@@ -3654,9 +3654,10 @@ value nme_get_zip(value pathName)
     
 #ifdef HX_WINDOWS
     const wchar_t* str = val_os_string(pathName);
-    int length = wcslen( str );
+    int length = wcslen( str ) + 1;
     char* buff = new char[length];
-    wcstombs( buff, str, sizeof( buff ));
+	buff[length - 1] = '\0';
+    wcstombs( buff, str, length * sizeof(char));
     obb = OBB::OpenOBB( buff );
     delete buff;
 #else
@@ -3680,9 +3681,10 @@ value nme_check_file_exist_in_zip(value zipHandle, value filename)
     {
 #ifdef HX_WINDOWS
         const wchar_t* str = val_os_string(filename);
-        int length = wcslen( str );
+        int length = wcslen( str ) + 1;
         char* buff = new char[length];
-        wcstombs( buff, str, sizeof( buff ));
+		buff[length - 1] = '\0';
+        wcstombs( buff, str, length * sizeof(char));
         setCurFile = obb->SetCurrentFile(buff);
         delete buff;
 #else
@@ -3702,9 +3704,10 @@ value nme_bitmap_data_load_from_zip(value zipHandle, value filename)
 	{
 #ifdef HX_WINDOWS
         const wchar_t* str = val_os_string(filename);
-        int length = wcslen( str );
+        int length = wcslen( str ) + 1;
         char* buff = new char[length];
-        wcstombs( buff, str, sizeof( buff ));
+		buff[length - 1] = '\0';
+        wcstombs( buff, str, length * sizeof(char));
         setCurFile = obb->SetCurrentFile(buff);
         delete buff;
 #else
@@ -3738,9 +3741,10 @@ value nme_text_load_from_zip(value zipHandle, value filename)
 	{
 #ifdef HX_WINDOWS
         const wchar_t* str = val_os_string(filename);
-        int length = wcslen( str );
+        int length = wcslen( str ) + 1;
         char* buff = new char[length];
-        wcstombs( buff, str, sizeof( buff ));
+		buff[length - 1] = '\0';
+        wcstombs( buff, str, length * sizeof(char));
         setCurFile = obb->SetCurrentFile(buff);
         delete buff;
 #else
