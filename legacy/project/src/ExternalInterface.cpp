@@ -223,6 +223,7 @@ DEFINE_LIME_LEGACY_PRIM(display_object_set_z,2);
 
 //kukuruz
 DEFINE_LIME_LEGACY_PRIM_1(get_zip);
+DEFINE_LIME_LEGACY_PRIM_1(unzip_assets);
 DEFINE_LIME_LEGACY_PRIM_2(check_file_exist_in_zip);
 
 DEFINE_LIME_LEGACY_PRIM_2(bitmap_data_load_from_zip);

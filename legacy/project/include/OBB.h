@@ -1,20 +1,29 @@
 #ifndef OBB_H
 #define OBB_H
 
-#include <stdlib.h>
 #include <unzip.h>
 #include <nme/Object.h>
 #include <string>
 #include <map>
+#include <iostream>
+
 
 namespace nme
 {
+	const unsigned int MAX_COMMENT = 255;
+	const unsigned int BUFFERSIZE = 2048;
+	const unsigned int MAX_PATH = 4096;
+	const unsigned int MAX_DRIVE = 3;
+	const unsigned int MAX_DIR = 256;
+	const unsigned int MAX_FNAME = 256;
+	const unsigned int MAX_EXT = 256;
 
 class OBB: public Object
 {
 	public:
         static OBB* OpenOBB(const char* pathName);
-        
+        static bool UnzipOBB(const char* pathName);
+		
 		OBB() {
 			_buff = NULL;
 			_buffSize = 0;
@@ -29,7 +38,10 @@ class OBB: public Object
 		bool SetCurrentFile(const char *fileName);
 		int GetCurrentFileSize();
 		unsigned char* GetDataFromCurrentFile(int length);
-		
+		bool UnzipFile(const char* pathname);
+		int GetFileCount();
+		bool CreateFilePath(const char* szFilePath);
+		bool CreateFolder(const char* szFolder);
 	private:
         std::map<std::string, unz_file_pos> _map;
 		

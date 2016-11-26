@@ -3673,6 +3673,26 @@ value nme_get_zip(value pathName)
 }
 DEFINE_PRIM(nme_get_zip,1);
 
+value nme_unzip_assets(value pathName)
+{
+    bool result;
+    
+#ifdef HX_WINDOWS
+    const wchar_t* str = val_os_string(pathName);
+    int length = wcslen( str ) + 1;
+    char* buff = new char[length];
+	buff[length - 1] = '\0';
+    wcstombs( buff, str, length * sizeof(char));
+    result = OBB::UnzipOBB( buff );
+    delete buff;
+#else
+    result = OBB::UnzipOBB(val_os_string(pathName));
+#endif
+    
+	return alloc_bool(result);
+}
+DEFINE_PRIM(nme_unzip_assets,1);
+
 value nme_check_file_exist_in_zip(value zipHandle, value filename)
 {
     bool setCurFile;
