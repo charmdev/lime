@@ -33,6 +33,15 @@ class OBB: public Object
 			_file_name_length = sizeof(char) * 500;
 			_file_name = (char*) malloc(_file_name_length);
 		}
+
+		~OBB() {
+			if(_buff)
+				free(_buff);
+
+			if(_file_name)
+				free(_file_name);
+		}
+
 		bool GoToFirstFile();
 		bool GoToNextFile();
 		bool SetCurrentFile(const char *fileName);

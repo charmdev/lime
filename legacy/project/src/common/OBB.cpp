@@ -42,59 +42,36 @@ OBB* OBB::OpenOBB(const char* pathname)
 }   
 bool OBB::UnzipOBB(const char* pathname) //.zip
 {
-	/*
-	std::string assetsDir(pathname);
-	int dotPos = assetsDir.find_last_of('.');
-	assetsDir = assetsDir.substr(0, dotPos);
-	
-	if(!rmdir(assetsDir.c_str()))
-	{
-		//__android_log_print(ANDROID_LOG_VERBOSE, "trace OBB.cpp", "Remove directory error: %s", assetsDir.c_str());
-		std::cout << "Remove directory error: " << assetsDir.c_str() << std::endl;
-	}
-	*/
 	OBB* obb = new OBB();
 	
 	unzFile file = unzOpen(pathname);
-	if(file != NULL)
+	if(file)
 	{		
 		obb -> _zipFile = file;		
-		if(!(obb -> GoToFirstFile()))
-		{			
-			//__android_log_write(ANDROID_LOG_VERBOSE, "trace OBB.cpp", "GoToFirstFile error");
-			std::cout << "GoToFirstFile error " << std::endl;
-			return false;
-		}
-	}
-	else 
-	{		
-		//__android_log_write(ANDROID_LOG_VERBOSE, "trace OBB.cpp", "file == NULL");
-		std::cout << "file == NULL" << std::endl;
-		return false;
-	}
-	
-	if (obb -> GetFileCount() == 0)
-	{				
-		//__android_log_write(ANDROID_LOG_VERBOSE, "trace OBB.cpp", "GetFileCount() == 0");
-		std::cout << "GetFileCount() == 0"<< std::endl;
-		return false;	
-	}
-	
-	do
-	{
-		//__android_log_print(ANDROID_LOG_VERBOSE, "trace OBB.cpp", "unzipping file: %s", (obb->_currentFile).c_str());
-		//std::cout << "unzipping file: " << obb->_currentFile << std::endl;
-		if (!obb -> UnzipFile(pathname))
+		if(obb -> GoToFirstFile() && (obb -> GetFileCount() > 0))
 		{
-			//__android_log_print(ANDROID_LOG_VERBOSE, "trace OBB.cpp", "UnzipFile returned false for: %s", pathname);
-			std::cout << "UnzipFile returned false for" << pathname<< std::endl<< std::endl;
-			return false;
+			bool unzError = false;
+
+			do
+			{
+				if (!obb -> UnzipFile(pathname))
+				{
+					unzError = true;
+					break;
+				}
+			}
+			while (obb -> GoToNextFile());
+			
+			unzClose(file);
+			delete obb;
+
+			return !unzError;
 		}
 	}
-	while (obb -> GoToNextFile());
 	
-	return true;
+	return false;
 }
+
 bool OBB::UnzipFile(const char* zipPath)
 {	
 	if (! this -> _zipFile)
