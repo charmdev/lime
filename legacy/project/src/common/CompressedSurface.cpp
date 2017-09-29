@@ -36,10 +36,12 @@ void PVRTGetOGLES2TextureFormat(const PVRTextureHeaderV3& sTextureHeader, PVRTui
 			}
 		case ePVRTPF_PVRTCI_4bpp_RGB:
 			{
+				internalformat = GL_COMPRESSED_RGB_PVRTC_4BPPV1_IMG;
 				return;
 			}
 		case ePVRTPF_PVRTCI_4bpp_RGBA:
 			{
+				internalformat = GL_COMPRESSED_RGBA_PVRTC_4BPPV1_IMG;
 				return;
 			}
 		case ePVRTPF_PVRTCII_2bpp:
@@ -78,10 +80,31 @@ void PVRTGetTextureDataSize(PVRTextureHeaderV3& sTextureHeader, PVRTuint32& comp
 			uiSmallestDepth=1;
 			bpp=2;
 			break;
+			
+		case ePVRTPF_PVRTCI_2bpp_RGB:
+			uiSmallestWidth=16;
+			uiSmallestHeight=8;
+			uiSmallestDepth=1;
+			bpp=2;
+			break;
 
 		case ePVRTPF_ETC1:
 			uiSmallestWidth=4;
 			uiSmallestHeight=4;
+			uiSmallestDepth=1;
+			bpp=4;
+			break;
+			
+		case ePVRTPF_PVRTCI_4bpp_RGB:
+			uiSmallestWidth=8;
+			uiSmallestHeight=8;
+			uiSmallestDepth=1;
+			bpp=4;
+			break;
+			
+		case ePVRTPF_PVRTCI_4bpp_RGBA:
+			uiSmallestWidth=8;
+			uiSmallestHeight=8;
 			uiSmallestDepth=1;
 			bpp=4;
 			break;
@@ -91,13 +114,13 @@ void PVRTGetTextureDataSize(PVRTextureHeaderV3& sTextureHeader, PVRTuint32& comp
 	PVRTuint32 uiHeight = sTextureHeader.u32Height;
 	PVRTuint32 uiDepth = sTextureHeader.u32Depth;
 
-	uiWidth = uiWidth + ( ( -1 * uiWidth ) % uiSmallestWidth );
-	uiHeight = uiHeight + ( ( -1 * uiHeight ) % uiSmallestHeight );
-	uiDepth = uiDepth + ( ( -1 * uiDepth ) % uiSmallestDepth );
+	uiWidth = uiWidth + (( -1 * uiWidth) % uiSmallestWidth);
+	uiHeight = uiHeight + (( -1 * uiHeight) % uiSmallestHeight);
+	uiDepth = uiDepth + (( -1 * uiDepth) % uiSmallestDepth);
 
 	PVRTuint64 uiDataSize = bpp * uiWidth * uiHeight * uiDepth;
 	
-	compressedSize = (PVRTuint32)( uiDataSize / 8 );
+	compressedSize = (PVRTuint32) (uiDataSize / 8);
 }
 
 void Configure(PVRTextureHeaderV3& sTextureHeader, PVRTuint32& internalFormat, PVRTuint32& compressedSize)
@@ -113,9 +136,11 @@ namespace nme
 	{
 		ByteArray bytes;
 		
-#ifdef ANDROID		
-		 bytes = AndroidGetAssetBytes(inFilename);
-#endif
+//#ifdef ANDROID		
+//		bytes = AndroidGetAssetBytes(inFilename);
+//#else
+		bytes = ByteArray::FromFile(inFilename);
+//#endif
 	   
 	    if (bytes.Ok())
 	    {
@@ -186,10 +211,13 @@ namespace nme
 	    ByteArray bytes;
 		ByteArray bytes_alpha;
 		
-#ifdef ANDROID		
-		bytes = AndroidGetAssetBytes(inFilename);
-	    bytes_alpha = AndroidGetAssetBytes(inAlphaname);
-#endif
+//#ifdef ANDROID		
+//		bytes = AndroidGetAssetBytes(inFilename);
+//	    bytes_alpha = AndroidGetAssetBytes(inAlphaname);
+//#else
+		bytes = ByteArray::FromFile(inFilename);
+	    bytes_alpha = ByteArray::FromFile(inAlphaname);
+//#endif
 
 	    if (bytes.Ok() && bytes_alpha.Ok())
 	    {
@@ -220,7 +248,7 @@ namespace nme
 
 	   return 0;
 	}
-
+	
 	void CompressedSurface::AttachData(PVRTextureHeaderV3& sTextureHeader, uint8* data)
 	{
 		Configure(sTextureHeader, (PVRTuint32&) mDataFormat, (PVRTuint32&) mDataSize);

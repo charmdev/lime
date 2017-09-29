@@ -3796,7 +3796,6 @@ value nme_compressed_texture_load(value inFilename)
    {
       value result = ObjectToAbstract(surface);
       surface->DecRef();
-         
       return result;
    }
    return alloc_null();
@@ -3810,7 +3809,6 @@ value nme_compressed_texture_separate_alpha_load(value inFilename, value alphaNa
    {
       value result = ObjectToAbstract(surface);
       surface->DecRef();
-         
       return result;
    }
    return alloc_null();

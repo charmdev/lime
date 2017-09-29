@@ -42,7 +42,7 @@ public:
    //kukuruz:
    static Surface *LoadCompressed(const OSChar *inFilename);
    static Surface *LoadCompressed(const OSChar *inFilename, const OSChar *inAlphaname);
-
+   
    int getTextureId();
    int getTextureWidth();
    int getTextureHeight();
