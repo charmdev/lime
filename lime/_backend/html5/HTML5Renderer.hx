@@ -60,7 +60,8 @@ class HTML5Renderer {
 			
 			var webgl:RenderingContext = null;
 			
-			if (#if (canvas || munit) false #elseif webgl true #else !Reflect.hasField (parent.window.config, "hardware") || parent.window.config.hardware #end) {
+			if (#if webgl true #elseif (canvas || munit) false #else !Reflect.hasField (parent.window.config, "hardware") || parent.window.config.hardware #end) {
+		//	if (#if (canvas || munit) false #elseif webgl true #else !Reflect.hasField (parent.window.config, "hardware") || parent.window.config.hardware #end) {
 				
 				var options = {
 					
@@ -73,9 +74,10 @@ class HTML5Renderer {
 					
 				};
 				
-				webgl = cast parent.window.backend.canvas.getContextWebGL (options);
 				
+				webgl = cast parent.window.backend.canvas.getContextWebGL (options);
 			}
+			
 			
 			if (webgl == null) {
 				
