@@ -58,7 +58,6 @@ import haxe.ds.StringMap;
 	
 	
 	public static function deepCopy<T> (v:T):T {
-		
 		if (!Reflect.isObject (v)) { // simple type
 			
 			return v;
@@ -68,12 +67,11 @@ import haxe.ds.StringMap;
 			return v;
 			
 		} else if (Std.is (v, Array)) { // array
-			
 			var result = Type.createInstance (Type.getClass (v), []);
-			
 			untyped {
 				for (ii in 0...v.length) {
-					result.push (deepCopy (v[ii]));
+					var cp = deepCopy(v[ii]);
+					result.push(cp);
 				}
 			}
 			
@@ -106,7 +104,6 @@ import haxe.ds.StringMap;
 			return result;
 			
 		} else if (Std.is (v, List)) { // list
-			
 			//List would be copied just fine without this special case, but I want to avoid going recursive
 			var result = Type.createInstance (Type.getClass (v), []);
 			
