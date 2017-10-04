@@ -473,6 +473,7 @@ class OGLCompressedTexture : public Texture
   CompressedSurface *mSurface;
 
   bool mRepeat;
+  bool mSmooth;
 
   public:
     OGLCompressedTexture(CompressedSurface* inSurface) : mTextureID(0), mAlphaID(0)
@@ -484,6 +485,7 @@ class OGLCompressedTexture : public Texture
       mTextureHeight = mSurface -> Height();
 
       mRepeat = true;
+	  mSmooth = false;
 
       CreateTexture(&mTextureID, mSurface -> getDataFormat(), mTextureWidth, mTextureHeight, mSurface -> getDataSize(), mSurface -> getData(), mRepeat);
       if(mSurface -> hasSepAlpha())
@@ -531,6 +533,21 @@ class OGLCompressedTexture : public Texture
           glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
        }
     }
+	
+	if (mSmooth != inSmooth)
+	{
+		mSmooth = inSmooth;
+		if (mSmooth)
+		{
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		}
+		else
+		{
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		}
+	}
   }
 
   UserPoint PixelToTex(const UserPoint &inPixels)
