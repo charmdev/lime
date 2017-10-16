@@ -25,6 +25,7 @@ public:
    
    //kukuruz: solution for get id, width or height of opengl texture
    virtual int getTextureId() { return 0; }
+   virtual int getAlphaTextureId() { return 0; }
    virtual int getTextureWidth() { return 0; }
    virtual int getTextureHeight() { return 0; }
 };

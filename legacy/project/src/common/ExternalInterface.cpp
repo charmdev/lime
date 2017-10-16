@@ -3824,6 +3824,15 @@ value nme_get_gl_texture_id_from_lime_surface(value inHandle)
   return alloc_int(0);
 }
 
+value nme_get_gl_alpha_texture_id_from_lime_surface(value inHandle)
+{
+  Surface *surface;
+  if (AbstractToObject(inHandle,surface))
+    return alloc_int(surface->getAlphaTextureId());
+
+  return alloc_int(0);
+}
+
 value nme_get_gl_texture_width_from_lime_surface(value inHandle)
 {
   Surface *surface;
@@ -3840,6 +3849,28 @@ value nme_get_gl_texture_height_from_lime_surface(value inHandle)
     return alloc_int(surface -> getTextureHeight());
 
   return alloc_int(0);
+}
+
+value nme_get_gl_texture_compressed_from_lime_surface(value inHandle)
+{
+  Surface *surface;
+  if (AbstractToObject(inHandle, surface))
+  {
+	return alloc_bool(surface->isCompressed());
+  }
+  
+  return alloc_bool(false);
+}
+
+value nme_get_gl_texture_separate_alpha_from_lime_surface(value inHandle)
+{
+  Surface *surface;
+  if (AbstractToObject(inHandle, surface))
+  {
+	return alloc_bool(surface->hasSepAlpha());
+  }
+  
+  return alloc_bool(false);
 }
 
 //========================================================================================

@@ -33,7 +33,7 @@ class Surface : public ImageBuffer
 public:
    // Non-PO2 will generate dodgy repeating anyhow...
    Surface() :  mTexture(0), mVersion(0), mFlags(surfNotRepeatIfNonPO2), mAllowTrans(true)
-                , /* kukuruz */ mCompressed(false) { };
+                , /* kukuruz */ mCompressed(false), mSepAlpha(false) { };
    
    // Implementation depends on platform.
    static Surface *Load(const OSChar *inFilename);
@@ -44,6 +44,7 @@ public:
    static Surface *LoadCompressed(const OSChar *inFilename, const OSChar *inAlphaname);
    
    int getTextureId();
+   int getAlphaTextureId();
    int getTextureWidth();
    int getTextureHeight();
    //=============================================================================  
@@ -109,6 +110,7 @@ public:
 
    //kukuruz
    bool isCompressed() { return mCompressed; }
+   bool hasSepAlpha() { return mSepAlpha; }
    
 protected:
    mutable int   mVersion;
@@ -118,6 +120,7 @@ protected:
    bool          mAllowTrans;
    
    //kukuruz:
+   bool mSepAlpha;
    bool mCompressed;
 };
 
@@ -294,8 +297,6 @@ public:
    void AttachData(PVRTextureHeaderV3& sTextureHeader, uint8 *data);
    void AttachAlpha(PVRTextureHeaderV3& sAlphaHeader, uint8 *alpha);
 
-   bool hasSepAlpha() { return mSepAlpha; }
-
    uint8* getData() { return mData; }
    int getDataSize() { return mDataSize; }
    int getDataFormat() { return mDataFormat; }
@@ -309,8 +310,6 @@ protected:
 
    int mWidth;
    int mHeight;
-
-   bool mSepAlpha;
 
    uint8 *mData;
    int mDataSize;

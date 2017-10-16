@@ -49,6 +49,12 @@ int Surface::getTextureId()
    return tex -> getTextureId();
 }
 
+int Surface::getAlphaTextureId()
+{
+   Texture *tex = GetTexture( nme::HardwareRenderer::current );
+   return tex -> getAlphaTextureId();
+}
+
 int Surface::getTextureWidth()
 {
    Texture *tex = GetTexture( nme::HardwareRenderer::current );

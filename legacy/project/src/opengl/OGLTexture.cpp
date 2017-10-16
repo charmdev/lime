@@ -500,6 +500,26 @@ class OGLCompressedTexture : public Texture
     if (mAlphaID && mContextVersion == gTextureContextVersion && HardwareRenderer::current)
       HardwareRenderer::current -> DestroyNativeTexture((void *)(size_t)mAlphaID);
   }
+  
+  int getTextureId()
+   {
+     return mTextureID;
+   }
+   
+   int getAlphaTextureId()
+   {
+     return mAlphaID;
+   }
+   
+   int getTextureWidth()
+   {
+     return mTextureWidth;
+   }
+
+   int getTextureHeight()
+   {
+     return mTextureHeight;
+   }
 
   void Bind(int inSlot)
   {

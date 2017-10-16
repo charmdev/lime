@@ -232,8 +232,12 @@ DEFINE_LIME_LEGACY_PRIM_2(text_load_from_zip);
 DEFINE_LIME_LEGACY_PRIM_1(compressed_texture_load); 
 DEFINE_LIME_LEGACY_PRIM_2(compressed_texture_separate_alpha_load);
 DEFINE_LIME_LEGACY_PRIM_1(get_gl_texture_id_from_lime_surface);
+DEFINE_LIME_LEGACY_PRIM_1(get_gl_alpha_texture_id_from_lime_surface);
 DEFINE_LIME_LEGACY_PRIM_1(get_gl_texture_width_from_lime_surface);
 DEFINE_LIME_LEGACY_PRIM_1(get_gl_texture_height_from_lime_surface);
+
+DEFINE_LIME_LEGACY_PRIM_1(get_gl_texture_compressed_from_lime_surface);
+DEFINE_LIME_LEGACY_PRIM_1(get_gl_texture_separate_alpha_from_lime_surface);
 
 DEFINE_LIME_PROP(display_object,scale_x);
 DEFINE_LIME_PROP(display_object,scale_y);
