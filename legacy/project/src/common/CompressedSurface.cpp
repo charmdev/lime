@@ -301,7 +301,7 @@ namespace nme
 
 	void CompressedSurface::MakeTextureOnly()
 	{ 
-		if(mData)
+		if (mData)
 			GetTexture( nme::HardwareRenderer::current );
 
 		ClearBuffs();

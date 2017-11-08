@@ -450,7 +450,10 @@ public:
                
             if (element.mSurface->isCompressed())
                if ( ((CompressedSurface*) element.mSurface)->hasSepAlpha() )
-                    progId |= DRAW_SEP_ALPHA;   
+                    progId |= DRAW_SEP_ALPHA;
+			
+			if (premAlpha)
+				progId |= DRAW_PREMULT_ALPHA;
          }
 
          if (element.mFlags & DRAW_HAS_COLOUR)

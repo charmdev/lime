@@ -185,7 +185,8 @@ enum
    
    //kukuruz
    DRAW_SEP_ALPHA       =   0x0100,
-   PROG_COUNT =             0x0200,
+   DRAW_PREMULT_ALPHA   =   0x0200,
+   PROG_COUNT 			=   0x0400,
 };
 
 typedef float Trans4x4[4][4];
