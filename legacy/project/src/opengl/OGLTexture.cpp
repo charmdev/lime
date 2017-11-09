@@ -474,6 +474,39 @@ class OGLCompressedTexture : public Texture
 
   bool mRepeat;
   bool mSmooth;
+  
+  int mSlot;
+  
+  void BindFlagsForTexture(bool inChangeRepeat, bool inChangeSmooth)
+  {
+	if (inChangeRepeat)
+    {
+       if (mRepeat)
+       {
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+       }
+       else
+       {
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+       }
+    }
+	
+	if (inChangeSmooth)
+	{
+		if (mSmooth)
+		{
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		}
+		else
+		{
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		}
+	}  
+  }
 
   public:
     OGLCompressedTexture(CompressedSurface* inSurface) : mTextureID(0), mAlphaID(0)
@@ -529,44 +562,37 @@ class OGLCompressedTexture : public Texture
     }
     glBindTexture(GL_TEXTURE_2D, mTextureID);
 
-    if (mSurface -> hasSepAlpha())
+    if (mSurface->hasSepAlpha())
     {
       glActiveTexture(GL_TEXTURE1);
       glEnable(GL_TEXTURE_2D);
       glBindTexture(GL_TEXTURE_2D, mAlphaID);
     }
+	
+	mSlot = inSlot;
   }
-
+  
   void BindFlags(bool inRepeat, bool inSmooth) 
   {
-    if (mRepeat != inRepeat)
-    {
-       mRepeat = inRepeat;
-       if (mRepeat)
-       {
-          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT );
-          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT );
-       }
-       else
-       {
-          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
-          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
-       }
-    }
+    bool repeatChanged = (mRepeat != inRepeat);
+	bool smoothChanged = (mSmooth != inSmooth);
 	
-	if (mSmooth != inSmooth)
+	mRepeat = inRepeat;
+	mSmooth = inSmooth;
+	
+	if (mSurface->hasSepAlpha())
 	{
-		mSmooth = inSmooth;
-		if (mSmooth)
-		{
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		}
-		else
-		{
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		}
+		glActiveTexture(GL_TEXTURE0 + mSlot);
+	}
+	
+	// bind flags for color texture
+	BindFlagsForTexture(repeatChanged, smoothChanged);
+	
+	// bind flags for alpha texture (if there is one)
+	if (mSurface->hasSepAlpha())
+	{
+		glActiveTexture(GL_TEXTURE0 + mSlot + 1);
+		BindFlagsForTexture(repeatChanged, smoothChanged);
 	}
   }
 

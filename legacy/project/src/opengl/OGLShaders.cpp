@@ -198,15 +198,15 @@ namespace nme
 			if (mColourOffsetSlot >= 0)
 				glUniform4f(mColourOffsetSlot,
 				   #ifdef NME_PREMULTIPLIED_ALPHA
-				   inTransform->redOffset*one_on_255*inTransform->alphaMultiplier,
-				   inTransform->greenOffset*one_on_255*inTransform->alphaMultiplier,
-				   inTransform->blueOffset*one_on_255*inTransform->alphaMultiplier,
+				   inTransform->redOffset * one_on_255 * inTransform->alphaMultiplier,
+				   inTransform->greenOffset * one_on_255 * inTransform->alphaMultiplier,
+				   inTransform->blueOffset * one_on_255 * inTransform->alphaMultiplier,
 				   #else
-				   inTransform->redOffset*one_on_255,
-				   inTransform->greenOffset*one_on_255,
-				   inTransform->blueOffset*one_on_255,
+				   inTransform->redOffset * one_on_255,
+				   inTransform->greenOffset * one_on_255,
+				   inTransform->blueOffset * one_on_255,
 				   #endif
-				   inTransform->alphaOffset*one_on_255);
+				   inTransform->alphaOffset * one_on_255);
 
 			if (mColourScaleSlot>=0)
 				glUniform4f(mColourScaleSlot,
