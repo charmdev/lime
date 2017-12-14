@@ -448,6 +448,8 @@ class IOSPlatform extends PlatformTarget {
 			{ name: "Default-667h@2x.png", w: 750, h: 1334 }, // iPhone 6, portrait
 			{ name: "Default-736h@3x.png", w: 1242,	h: 2208 }, // iPhone 6 Plus, portrait
 			{ name: "Default-736h-Landscape@3x.png", w: 2208, h: 1242 }, // iPhone 6 Plus, landscape
+			{ name: "Default-812h@3x.png", w: 1125,	h: 2436 }, // iPhone 10, portrait
+			{ name: "Default-812h-Landscape@3x.png", w: 2436, h: 1125 } // iPhone 10, landscape
 		];
 
 		var splashScreenPath = PathHelper.combine (projectDirectory, "Images.xcassets/LaunchImage.launchimage");
