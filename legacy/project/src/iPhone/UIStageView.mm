@@ -532,7 +532,6 @@ static std::string nmeTitle;
 
       CGPoint thumbPoint;
       thumbPoint = [aTouch locationInView:aTouch.view];
-      //printf("touchesBegan %d x %d!\n", (int)thumbPoint.x, (int)thumbPoint.y);
 
       if (mPrimaryTouchHash==0)
          mPrimaryTouchHash = [aTouch hash];
@@ -1896,6 +1895,12 @@ bool nmeIsMain = true;
 #define UIInterfaceOrientationAllMask  (UIInterfaceOrientationPortraitMask | UIInterfaceOrientationLandscapeLeftMask | UIInterfaceOrientationLandscapeRightMask | UIInterfaceOrientationPortraitUpsideDownMask)
 #define UIInterfaceOrientationAllButUpsideDownMask  (UIInterfaceOrientationPortraitMask | UIInterfaceOrientationLandscapeLeftMask | UIInterfaceOrientationLandscapeRightMask)
 
+- (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)gestureRecognizer
+{
+    NSLog(@"gestureRecognizerShouldBegin called");
+    return false;
+}
+
 - (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation
 {
    if (gFixedOrientation >= 0)
@@ -2002,7 +2007,6 @@ bool nmeIsMain = true;
 - (void)viewDidAppear:(BOOL)animated
 {
    CGRect bounds = self.view.bounds;
- 
 
    if (!isFirstAppearance)
    {
@@ -2297,6 +2301,8 @@ CGRect keyboardRect = CGRectMake(0, 0, 0, 0);
 @interface UIStageViewController : UIViewController
 - (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation;
 - (void)loadView;
+- (void)viewDidLoad;
+- (UIRectEdge)preferredScreenEdgesDeferringSystemGestures;
 - (void)viewWillAppear:(BOOL)animated;
 - (void)viewWillDisappear:(BOOL)animated;
 - (void)keyboardWillShow:(NSNotification*)notification;
@@ -3059,6 +3065,12 @@ public:
 #define UIInterfaceOrientationAllMask  (UIInterfaceOrientationPortraitMask | UIInterfaceOrientationLandscapeLeftMask | UIInterfaceOrientationLandscapeRightMask | UIInterfaceOrientationPortraitUpsideDownMask)
 #define UIInterfaceOrientationAllButUpsideDownMask  (UIInterfaceOrientationPortraitMask | UIInterfaceOrientationLandscapeLeftMask | UIInterfaceOrientationLandscapeRightMask)
 
+- (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)gestureRecognizer
+{
+    NSLog(@"gestureRecognizerShouldBegin called");
+    return false;
+}
+
 - (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation
 {
    if (gFixedOrientation >= 0)
@@ -3134,10 +3146,36 @@ public:
    return mask;
 }
 
+- (UIRectEdge)preferredScreenEdgesDeferringSystemGestures
+{
+    //NSLog(@"preferredScreenEdgesDeferringSystemGestures");
+    
+    return UIRectEdgeTop | UIRectEdgeBottom;//UIRectEdge();
+}
+
 - (void)loadView
 {
+    //NSLog(@"        LOAD VIEW       ");
+    
    UIStageView *view = [[UIStageView alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
    self.view = view;
+}
+
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    
+    //NSLog(@"        VIEW DID LOAD       ");
+    
+    if (@available(iOS 11, *))
+    {
+        [super setNeedsUpdateOfScreenEdgesDeferringSystemGestures];
+        //NSLog(@"        FLAGS for IOS11 UPDATED!       ");
+    } else
+    {
+        [super setNeedsStatusBarAppearanceUpdate];
+    }
+    
 }
 
 - (void)viewWillAppear:(BOOL)animated
@@ -3446,7 +3484,8 @@ public:
 
       CGPoint thumbPoint;
       thumbPoint = [aTouch locationInView:aTouch.view];
-      //printf("touchesBegan %d x %d!\n", (int)thumbPoint.x, (int)thumbPoint.y);
+       //NSLog(@"touchesBegan X %f", thumbPoint.x);
+       //NSLog(@"touchesBegan Y %f", thumbPoint.y);
 
       if (mPrimaryTouchHash==0)
          mPrimaryTouchHash = [aTouch hash];
