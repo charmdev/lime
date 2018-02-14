@@ -249,6 +249,48 @@ namespace nme
 	   return 0;
 	}
 	
+	void CompressedSurface::LoadAlpha(const OSChar *inAlphaname)
+	{
+		ByteArray bytes_alpha;
+		bytes_alpha = ByteArray::FromFile(inAlphaname);
+
+	    if (bytes_alpha.Ok())
+	    {
+	    	uint8 *alpha = bytes_alpha.Bytes();
+
+	    	int alphaSize = bytes_alpha.Size();
+
+	    	if(!alpha || !alphaSize)
+	    		return;
+
+	    	//prepare texture header
+			PVRTextureHeaderV3 sAlphaHeader =* (PVRTextureHeaderV3*) alpha;
+			alpha = (PVRTuint8*)alpha + PVRTEX3_HEADERSIZE + sAlphaHeader.u32MetaDataSize;
+
+	    	AttachAlpha(sAlphaHeader, alpha);
+	    }
+	}
+	
+	bool CompressedSurface::needAlpha()
+	{
+		switch (mDataFormat)
+		{
+			case GL_COMPRESSED_RGB_PVRTC_4BPPV1_IMG:
+				return true;
+				break;
+			
+			case GL_ETC1_RGB8_OES:
+				return true;
+				break;
+			
+			default:
+				return false;
+				break;
+		}
+		
+		return false;
+	}
+	
 	void CompressedSurface::AttachData(PVRTextureHeaderV3& sTextureHeader, uint8* data)
 	{
 		Configure(sTextureHeader, (PVRTuint32&) mDataFormat, (PVRTuint32&) mDataSize);

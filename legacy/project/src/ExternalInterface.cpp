@@ -230,6 +230,8 @@ DEFINE_LIME_LEGACY_PRIM_2(bitmap_data_load_from_zip);
 DEFINE_LIME_LEGACY_PRIM_2(text_load_from_zip);
 
 DEFINE_LIME_LEGACY_PRIM_1(compressed_texture_load); 
+DEFINE_LIME_LEGACY_PRIM_1(compressed_texture_need_alpha); 
+DEFINE_LIME_LEGACY_PRIM_2(compressed_texture_load_alpha);
 DEFINE_LIME_LEGACY_PRIM_2(compressed_texture_separate_alpha_load);
 DEFINE_LIME_LEGACY_PRIM_1(get_gl_texture_id_from_lime_surface);
 DEFINE_LIME_LEGACY_PRIM_1(get_gl_alpha_texture_id_from_lime_surface);

@@ -59,7 +59,7 @@ public:
    virtual bool GetAllowTrans() const { return mAllowTrans; }
    virtual void SetAllowTrans(bool inAllowTrans) { mAllowTrans = inAllowTrans; }
    virtual void Clear(uint32 inColour,const Rect *inRect=0) = 0;
-
+   
    virtual void Zero() { Clear(0); }
    virtual void createHardwareSurface() { }
    virtual void destroyHardwareSurface() { }
@@ -68,6 +68,9 @@ public:
    virtual void setGPUFormat( PixelFormat pf ) {}
    virtual void multiplyAlpha () {}
    virtual void unmultiplyAlpha() { }
+   
+   virtual void LoadAlpha(const OSChar *inAlphaname) { }
+   virtual bool needAlpha() { return false; }
 
    int BytesPP() const { return Format()==pfAlpha ? 1 : 4; }
 
@@ -296,6 +299,9 @@ public:
    
    void AttachData(PVRTextureHeaderV3& sTextureHeader, uint8 *data);
    void AttachAlpha(PVRTextureHeaderV3& sAlphaHeader, uint8 *alpha);
+   
+   void LoadAlpha(const OSChar *inAlphaname);
+   bool needAlpha();
 
    uint8* getData() { return mData; }
    int getDataSize() { return mDataSize; }

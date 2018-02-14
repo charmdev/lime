@@ -3802,6 +3802,28 @@ value nme_compressed_texture_load(value inFilename)
 }
 DEFINE_PRIM(nme_compressed_texture_load,1);
 
+value nme_compressed_texture_load_alpha(value inHandle, value alphaName)
+{
+   Surface *surface;
+   if (AbstractToObject(inHandle,surface))
+   {
+	   surface->LoadAlpha(val_os_string(alphaName));
+   }
+   return alloc_null();
+}
+DEFINE_PRIM(nme_compressed_texture_load_alpha,2);
+
+value nme_compressed_texture_need_alpha(value inHandle)
+{
+	Surface *surface;
+    if (AbstractToObject(inHandle,surface))
+    {
+	    return alloc_bool(surface->needAlpha());
+    }
+	return alloc_bool(false);
+}
+DEFINE_PRIM(nme_compressed_texture_need_alpha,1);
+
 value nme_compressed_texture_separate_alpha_load(value inFilename, value alphaName)
 {
    Surface *surface = CompressedSurface::LoadCompressed(val_os_string(inFilename), val_os_string(alphaName));
