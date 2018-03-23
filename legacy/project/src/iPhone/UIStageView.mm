@@ -3161,6 +3161,23 @@ public:
    self.view = view;
 }
 
+- (void)viewDidAppear:(BOOL)animated
+{
+    [super viewDidAppear:animated];
+    
+    NSLog(@"     viewDidAppear      ");
+    
+    if (@available(iOS 11, *))
+    {
+        UIEdgeInsets newSafeArea = {50, 50, 50, 50};
+        self.additionalSafeAreaInsets = newSafeArea;
+        
+        [super viewSafeAreaInsetsDidChange];
+        
+        NSLog(@"        FLAGS for SAFE AREA UPDATED!       ");
+    }
+}
+
 - (void)viewDidLoad
 {
     [super viewDidLoad];
@@ -3169,8 +3186,10 @@ public:
     
     if (@available(iOS 11, *))
     {
+        
         [super setNeedsUpdateOfScreenEdgesDeferringSystemGestures];
-        //NSLog(@"        FLAGS for IOS11 UPDATED!       ");
+        
+        NSLog(@"        FLAGS for IOS11 UPDATED!       ");
     } else
     {
         [super setNeedsStatusBarAppearanceUpdate];
