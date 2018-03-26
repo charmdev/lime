@@ -3165,16 +3165,15 @@ public:
 {
     [super viewDidAppear:animated];
     
-    NSLog(@"     viewDidAppear      ");
-    
-    if (@available(iOS 11, *))
+    if([[UIDevice currentDevice]userInterfaceIdiom]==UIUserInterfaceIdiomPhone)
     {
-        UIEdgeInsets newSafeArea = {50, 50, 50, 50};
-        self.additionalSafeAreaInsets = newSafeArea;
-        
-        [super viewSafeAreaInsetsDidChange];
-        
-        NSLog(@"        FLAGS for SAFE AREA UPDATED!       ");
+        switch ((int)[[UIScreen mainScreen] nativeBounds].size.height)
+        {
+            case 2436:
+                self.view.bounds = CGRectInset(self.view.frame, 30.0f, 0.0f);
+                //NSLog(@"        FLAGS for bounds UPDATED! 666   ");
+            break;
+        }
     }
 }
 
@@ -3182,14 +3181,9 @@ public:
 {
     [super viewDidLoad];
     
-    //NSLog(@"        VIEW DID LOAD       ");
-    
     if (@available(iOS 11, *))
     {
-        
         [super setNeedsUpdateOfScreenEdgesDeferringSystemGestures];
-        
-        NSLog(@"        FLAGS for IOS11 UPDATED!       ");
     } else
     {
         [super setNeedsStatusBarAppearanceUpdate];
