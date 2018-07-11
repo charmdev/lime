@@ -3171,7 +3171,6 @@ public:
         {
             case 2436:
                 self.view.bounds = CGRectInset(self.view.frame, 30.0f, 0.0f);
-                //NSLog(@"        FLAGS for bounds UPDATED! 666   ");
             break;
         }
     }
@@ -3496,16 +3495,24 @@ public:
       UITouch *aTouch = [touchArr objectAtIndex:i];
 
       CGPoint thumbPoint;
+       CGFloat dx = 0.0f;
       thumbPoint = [aTouch locationInView:aTouch.view];
        //NSLog(@"touchesBegan X %f", thumbPoint.x);
        //NSLog(@"touchesBegan Y %f", thumbPoint.y);
 
       if (mPrimaryTouchHash==0)
          mPrimaryTouchHash = [aTouch hash];
+       
+       switch ((int)[[UIScreen mainScreen] nativeBounds].size.height)
+       {
+           case 2436:
+               dx = 30.0f;
+           break;
+       }
 
       if (mMultiTouch)
       {
-         Event mouse(etTouchBegin, thumbPoint.x, thumbPoint.y);
+         Event mouse(etTouchBegin, thumbPoint.x - dx, thumbPoint.y);
          mouse.value = [aTouch hash];
          if (mouse.value==mPrimaryTouchHash)
             mouse.flags |= efPrimaryTouch;
@@ -3513,7 +3520,7 @@ public:
       }
       else
       {
-         Event mouse(etMouseDown, thumbPoint.x, thumbPoint.y);
+         Event mouse(etMouseDown, thumbPoint.x - dx, thumbPoint.y);
          mouse.flags |= efLeftDown;
          mouse.flags |= efPrimaryTouch;
          mStage->OnMouseEvent(mouse);
