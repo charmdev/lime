@@ -411,7 +411,9 @@ class IOSPlatform extends PlatformTarget {
 			{ name : "Icon-60@2x.png", size : 120 },
 			{ name : "Icon-72@2x.png", size : 144 },
 			{ name : "Icon-76@2x.png", size : 152 },
+			{ name : "Icon-83.5@2x.png", size : 167 },
 			{ name : "Icon-60@3x.png", size : 180 },
+			{ name : "iTunesArtwork@2x.png", size : 1024 },
 		];
 		
 		context.HAS_ICON = true;
