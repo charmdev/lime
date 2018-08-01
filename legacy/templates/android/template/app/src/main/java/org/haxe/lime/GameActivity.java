@@ -554,7 +554,7 @@ public class GameActivity extends Activity implements SensorEventListener {
 	
 	
 	@Override public void onSensorChanged (SensorEvent event) {
-		
+        /*		
 		loadNewSensorData (event);
 		
 		if (accelData != null && magnetData != null) {
@@ -571,7 +571,8 @@ public class GameActivity extends Activity implements SensorEventListener {
 		}
 		
 		Lime.onDeviceOrientationUpdate (prepareDeviceOrientation ());
-		Lime.onNormalOrientationFound (bufferedNormalOrientation);
+		//Lime.onNormalOrientationFound (bufferedNormalOrientation);
+        */
 		
 	}
 	

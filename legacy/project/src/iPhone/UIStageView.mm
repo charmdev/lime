@@ -3161,16 +3161,28 @@ public:
    self.view = view;
 }
 
+- (void)viewDidAppear:(BOOL)animated
+{
+    [super viewDidAppear:animated];
+    
+    if([[UIDevice currentDevice]userInterfaceIdiom]==UIUserInterfaceIdiomPhone)
+    {
+        switch ((int)[[UIScreen mainScreen] nativeBounds].size.height)
+        {
+            case 2436:
+                self.view.bounds = CGRectInset(self.view.frame, 30.0f, 0.0f);
+            break;
+        }
+    }
+}
+
 - (void)viewDidLoad
 {
     [super viewDidLoad];
     
-    //NSLog(@"        VIEW DID LOAD       ");
-    
     if (@available(iOS 11, *))
     {
         [super setNeedsUpdateOfScreenEdgesDeferringSystemGestures];
-        //NSLog(@"        FLAGS for IOS11 UPDATED!       ");
     } else
     {
         [super setNeedsStatusBarAppearanceUpdate];
@@ -3471,7 +3483,19 @@ public:
    return NO;
 }
 
-
+- (CGFloat)getTouchDx
+{
+    CGFloat dx = 0.0f;
+    
+    switch ((int)[[UIScreen mainScreen] nativeBounds].size.height)
+    {
+        case 2436: // iPhone X
+            dx = 30.0f;
+        break;
+    }
+    
+    return dx;
+}
 
 - (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event
 {
@@ -3492,7 +3516,7 @@ public:
 
       if (mMultiTouch)
       {
-         Event mouse(etTouchBegin, thumbPoint.x, thumbPoint.y);
+         Event mouse(etTouchBegin, thumbPoint.x - [self getTouchDx], thumbPoint.y);
          mouse.value = [aTouch hash];
          if (mouse.value==mPrimaryTouchHash)
             mouse.flags |= efPrimaryTouch;
@@ -3500,7 +3524,7 @@ public:
       }
       else
       {
-         Event mouse(etMouseDown, thumbPoint.x, thumbPoint.y);
+         Event mouse(etMouseDown, thumbPoint.x - [self getTouchDx], thumbPoint.y);
          mouse.flags |= efLeftDown;
          mouse.flags |= efPrimaryTouch;
          mStage->OnMouseEvent(mouse);
@@ -3519,11 +3543,12 @@ public:
       UITouch *aTouch = [touchArr objectAtIndex:i];
 
       CGPoint thumbPoint;
+       CGFloat dx = 0.0f;
       thumbPoint = [aTouch locationInView:aTouch.view];
 
       if (mMultiTouch)
       {
-         Event mouse(etTouchMove, thumbPoint.x, thumbPoint.y);
+         Event mouse(etTouchMove, thumbPoint.x - [self getTouchDx], thumbPoint.y);
          mouse.value = [aTouch hash];
          if (mouse.value==mPrimaryTouchHash)
             mouse.flags |= efPrimaryTouch;
@@ -3531,7 +3556,7 @@ public:
       }
       else
       {
-         Event mouse(etMouseMove, thumbPoint.x, thumbPoint.y);
+         Event mouse(etMouseMove, thumbPoint.x - [self getTouchDx], thumbPoint.y);
          mouse.flags |= efLeftDown;
          mouse.flags |= efPrimaryTouch;
          mStage->OnMouseEvent(mouse);
@@ -3554,7 +3579,7 @@ public:
 
       if (mMultiTouch)
       {
-         Event mouse(etTouchEnd, thumbPoint.x, thumbPoint.y);
+         Event mouse(etTouchEnd, thumbPoint.x - [self getTouchDx], thumbPoint.y);
          mouse.value = [aTouch hash];
          if (mouse.value==mPrimaryTouchHash)
          {
@@ -3565,7 +3590,7 @@ public:
       }
       else
       {
-         Event mouse(etMouseUp, thumbPoint.x, thumbPoint.y);
+         Event mouse(etMouseUp, thumbPoint.x - [self getTouchDx], thumbPoint.y);
          mouse.flags |= efPrimaryTouch;
          mStage->OnMouseEvent(mouse);
       }
