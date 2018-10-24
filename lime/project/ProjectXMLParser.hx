@@ -1168,8 +1168,11 @@ class ProjectXMLParser extends HXProject {
 							path = PathHelper.combine (extensionPath, substitute (element.att.name));
 							
 						}
-						
+
 						var icon = new Icon (path);
+						if (element.has.roundPath) {
+							icon.roundPath = PathHelper.combine (extensionPath, substitute (element.att.roundPath));
+						}
 						
 						if (element.has.size) {
 							
@@ -1354,12 +1357,12 @@ class ProjectXMLParser extends HXProject {
 								var path = PathHelper.combine (extensionPath, substitute (element.att.path));
 								
 								if (FileSystem.exists (path) && !FileSystem.isDirectory (path)) {
-									
 									parseAssetsElement (element, extensionPath, true);
 									
 								} else {
-									
-									templatePaths.push (path);
+									trace(extensionPath);
+									trace(path);
+									templatePaths.push(path);
 									
 								}
 								
@@ -1491,6 +1494,12 @@ class ProjectXMLParser extends HXProject {
 								case "install-location":
 									
 									config.set ("android.install-location", value);
+
+								case "gradle-version":
+									config.set ("android.gradle-version", value);
+
+								case "build-tools-version":
+									config.set ("android.build-tools-version", value);
 								
 								case "extension":
 									

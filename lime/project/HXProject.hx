@@ -43,7 +43,7 @@ class HXProject {
 	public var haxedefs:Map <String, Dynamic>;
 	public var haxeflags:Array <String>;
 	public var haxelibs:Array <Haxelib>;
-	public var host (get_host, null):Platform;
+	public var host (get, null):Platform;
 	public var icons:Array <Icon>;
 	public var javaPaths:Array <String>;
 	public var libraries:Array <Library>;
@@ -57,8 +57,9 @@ class HXProject {
 	public var target:Platform;
 	public var targetFlags:Map <String, String>;
 	public var targetHandlers:Map <String, String>;
-	public var templateContext (get_templateContext, null):Dynamic;
+	public var templateContext (get, null):Dynamic;
 	public var templatePaths:Array <String>;
+	public var customTemplatePaths:Array<String>;
 	@:isVar public var window (get, set):WindowData;
 	public var windows:Array <WindowData>;
 	

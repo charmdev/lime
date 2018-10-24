@@ -31,7 +31,7 @@ class Cairo {
 	public var lineWidth (get, set):Float;
 	public var matrix (get, set):Matrix3;
 	public var miterLimit (get, set):Float;
-	public var operator (get, set):CairoOperator;
+	public var opperator (get, set):CairoOperator;
 	public var source (get, set):CairoPattern;
 	public var target (get, null):CairoSurface;
 	public var tolerance (get, set):Float;
@@ -768,7 +768,7 @@ class Cairo {
 	}
 	
 	
-	@:noCompletion private function get_operator ():CairoOperator {
+	@:noCompletion private function get_opperator ():CairoOperator {
 		
 		#if (lime_cairo && !macro)
 		return lime_cairo_get_operator (handle);
@@ -779,7 +779,7 @@ class Cairo {
 	}
 	
 	
-	@:noCompletion private function set_operator (value:CairoOperator):CairoOperator {
+	@:noCompletion private function set_opperator (value:CairoOperator):CairoOperator {
 		
 		#if (lime_cairo && !macro)
 		lime_cairo_set_operator (handle, value);
