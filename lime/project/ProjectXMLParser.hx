@@ -1360,8 +1360,6 @@ class ProjectXMLParser extends HXProject {
 									parseAssetsElement (element, extensionPath, true);
 									
 								} else {
-									trace(extensionPath);
-									trace(path);
 									templatePaths.push(path);
 									
 								}
