@@ -2,7 +2,7 @@ package lime.tools.platforms;
 
 
 //import openfl.display.BitmapData;
-import cs.internal.Null.Nullable;
+import String;
 import haxe.io.Path;
 import haxe.Json;
 import haxe.Template;
@@ -271,17 +271,15 @@ class IOSPlatform extends PlatformTarget {
 			
 			var name = null;
 			var path = null;
-			
+			var frameworksPaths:Array<String> = new Array<String>();
+			frameworksPaths.push("/System/Library/Frameworks/");
+			frameworksPaths.push("/Library/Frameworks/");
+			frameworksPaths.push("/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/System/Library/Frameworks/");
+
 			if (Path.extension (dependency.name) == "framework") {
 				
 				name = dependency.name;
-				path = findPathIn(
-					new Array<String>(
-						"/System/Library/Frameworks/${dependency.name}",
-						"/Library/Frameworks/${dependency.name}",
-						"/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/System/Library/Frameworks/${dependency.name}"
-					)
-				);
+				path = findPathIn(dependency.name, frameworksPaths);
 				
 			} else if (Path.extension (dependency.path) == "framework") {
 				
@@ -326,11 +324,11 @@ class IOSPlatform extends PlatformTarget {
 		
 	}
 	
-	private function findPathIn(paths:Array<String>):Null<String>
+	private function findPathIn(fileName:String, paths:Array<String>):String
 	{
 		for (dir in paths)
-			if (FileSystem.exists(dir))
-				return dir;
+			if (FileSystem.exists(dir + fileName))
+				return dir + fileName;
 
 		return null;
 	}
