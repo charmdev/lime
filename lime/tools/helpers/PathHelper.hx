@@ -142,7 +142,6 @@ class PathHelper {
 			if (FileSystem.exists (targetPath)) {
 				
 				matches.push (targetPath);
-				
 			}
 			
 		}

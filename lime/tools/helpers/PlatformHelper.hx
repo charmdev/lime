@@ -9,8 +9,8 @@ import sys.io.Process;
 class PlatformHelper {
 	
 	
-	public static var hostArchitecture (get_hostArchitecture, null):Architecture;
-	public static var hostPlatform (get_hostPlatform, null):Platform;
+	public static var hostArchitecture (get, null):Architecture;
+	public static var hostPlatform (get, null):Platform;
 	
 	private static var _hostArchitecture:Architecture;
 	private static var _hostPlatform:Platform;

@@ -312,7 +312,7 @@ class AndroidPlatform extends PlatformTarget {
 		context.ANDROID_TARGET_SDK_VERSION = project.config.getInt ("android.target-sdk-version", 19);
 		context.ANDROID_EXTENSIONS = project.config.getArrayString ("android.extension");
 		context.ANDROID_PERMISSIONS = project.config.getArrayString ("android.permission", [ "android.permission.WAKE_LOCK", "android.permission.INTERNET", "android.permission.VIBRATE", "android.permission.ACCESS_NETWORK_STATE" ]);
-		context.ANDROID_GRADLE_VERSION = project.config.getString ("android.gradle-version", "2.10");
+		context.ANDROID_GRADLE_VERSION = project.config.getString ("android.gradle-version", "3.2.1");
 		context.ANDROID_BUILD_TOOLS_VERSION = project.config.getString ("android.build-tools-version", "25.0.2");
 		context.ANDROID_LIBRARY_PROJECTS = [];
 		
@@ -350,18 +350,19 @@ class AndroidPlatform extends PlatformTarget {
 			icons = [ new Icon (PathHelper.findTemplate (project.templatePaths, "default/icon.svg")) ];
 			
 		}
-		
+
+		context.HAS_ICON = true;
+		/*
 		for (i in 0...iconTypes.length) {
 			
 			if (IconHelper.createIcon (icons, iconSizes[i], iconSizes[i], sourceSet + "/res/drawable-" + iconTypes[i] + "/icon.png")) {
+				IconHelper.createRoundIcon(icons, iconSizes[i], iconSizes[i], sourceSet + "/res/drawable-" + iconTypes[i] + "/icon_round.png");
 				
-				context.HAS_ICON = true;
 				
 			}
 			
 		}
-		
-		IconHelper.createIcon (icons, 732, 412, sourceSet + "/res/drawable-xhdpi/ouya_icon.png");
+		*/
 		
 		var packageDirectory = project.meta.packageName;
 		packageDirectory = sourceSet + "/java/" + packageDirectory.split (".").join ("/");
@@ -403,6 +404,7 @@ class AndroidPlatform extends PlatformTarget {
 			
 		}
 		
+	
 		FileHelper.recursiveCopyTemplate (project.templatePaths, "android/template", destination, context);
 		FileHelper.copyFileTemplate (project.templatePaths, "android/MainActivity.java", packageDirectory + "/MainActivity.java", context);
 		FileHelper.recursiveCopyTemplate (project.templatePaths, "haxe", targetDirectory + "/haxe", context);

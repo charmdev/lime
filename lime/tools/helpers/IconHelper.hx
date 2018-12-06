@@ -48,52 +48,64 @@ class IconHelper {
 		return false;
 		
 	}
-	
-	
-	public static function createIcon (icons:Array<Icon>, width:Int, height:Int, targetPath:String):Bool {
-		
-		var icon = findMatch (icons, width, height);
-		
-		if (icon != null && icon.size > 0 && Path.extension (icon.path) == "png") {
-			
-			if (canUseCache (targetPath, [ icon ])) {
-				
+
+	public static function createIcon(icons:Array<Icon>, width:Int, height:Int, targetPath:String):Bool {
+		var icon = findMatch(icons, width, height);
+		if (icon != null && icon.size > 0 && Path.extension(icon.path) == "png") {
+			if (canUseCache(targetPath, [icon])) {
 				return true;
-				
 			}
 			
-			PathHelper.mkdir (Path.directory (targetPath));
-			FileHelper.copyFile (icon.path, targetPath);
+			PathHelper.mkdir(Path.directory(targetPath));
+			FileHelper.copyFile(icon.path, targetPath);
 			return true;
 			
 		} else {
-			
-			if (canUseCache (targetPath, icons)) {
-				
+			if (canUseCache(targetPath, icons)) {
 				return true;
-				
 			}
 			
-			var image = getIconImage (icons, width, height);
-			
+			var image = getIconImage(icons, width, height);
 			if (image != null) {
-				
-				var bytes = image.encode ("png");
-				
+				var bytes = image.encode("png");
 				if (bytes != null) {
-					
-					PathHelper.mkdir (Path.directory (targetPath));
-					File.saveBytes (targetPath, bytes);
+					PathHelper.mkdir(Path.directory(targetPath));
+					File.saveBytes(targetPath, bytes);
 					return true;
-					
 				}
-				
 			}
-			
 		}
 		
 		return false;
+	}
+
+	public static function createRoundIcon(icons:Array<Icon>, width:Int, height:Int, targetPath:String):Bool {
+		var icon = findMatch(icons, width, height);
+		if (icon != null && icon.size > 0 && Path.extension(icon.roundPath) == "png") {
+			if (canUseCache(targetPath, [icon])) {
+				return true;
+			}
+			
+			PathHelper.mkdir(Path.directory(targetPath));
+			FileHelper.copyFile(icon.roundPath, targetPath);
+			return true;
+			
+		} else {
+			if (canUseCache(targetPath, icons)) {
+				return true;
+			}
+			var image = getIconImage(icons, width, height, null, function(icon) return icon.roundPath);
+			if (image != null) {
+				var bytes = image.encode("png");
+				if (bytes != null) {
+					PathHelper.mkdir(Path.directory(targetPath));
+					File.saveBytes(targetPath, bytes);
+					return true;
+				}
+			}
+		}
 		
+		return false;
 	}
 	
 	
@@ -360,50 +372,39 @@ class IconHelper {
 	}
 	
 	
-	private static function getIconImage (icons:Array <Icon>, width:Int, height:Int, backgroundColor:Int = null):Image {
+	private static function getIconImage (icons:Array <Icon>, width:Int, height:Int, backgroundColor:Int = null, pathProvider:Icon -> String = null):Image {
 		
-		var icon = findMatch (icons, width, height);
-		
+		var icon = findMatch(icons, width, height);
 		if (icon == null) {
-			
-			icon = findNearestMatch (icons, width, height);
-			
+			icon = findNearestMatch(icons, width, height);
 		}
 		
 		if (icon == null) {
+			return null;
+		}
+
+		var path = (pathProvider != null) ? pathProvider(icon) : icon.path;
+		if (!FileSystem.exists(path)) {
 			
+			LogHelper.warn("Could not find icon path: " + path);
 			return null;
 			
 		}
-		
-		if (!FileSystem.exists (icon.path)) {
-			
-			LogHelper.warn ("Could not find icon path: " + icon.path);
-			return null;
-			
-		}
-		
-		var extension = Path.extension (icon.path);
+		var extension = Path.extension(path);
 		var image = null;
 		
 		switch (extension) {
-			
 			case "png", "jpg", "jpeg":
-				
-				image = ImageHelper.resizeImage (Image.fromFile (icon.path), width, height);
+				image = ImageHelper.resizeImage(Image.fromFile(path), width, height);
 			
 			case "svg":
-				
 				//image = ImageHelper.rasterizeSVG (null /*new SVG (File.getContent (icon.path))*/, width, height, backgroundColor);
-				image = ImageHelper.rasterizeSVG (icon.path, width, height, backgroundColor);
-			
+				image = ImageHelper.rasterizeSVG(path, width, height, backgroundColor);
 		}
 		
 		return image;
-		
 	}
-   
-   
+
 	private static function packBits (data:Bytes, offset:Int, len:Int):Bytes {
 		
 		var out = new BytesOutput ();

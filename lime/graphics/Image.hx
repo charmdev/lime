@@ -730,8 +730,7 @@ class Image {
 				buffer.__srcBitmapData.merge (sourceImage.buffer.__srcBitmapData, sourceRect.__toFlashRectangle (), destPoint.__toFlashPoint (), redMultiplier, greenMultiplier, blueMultiplier, alphaMultiplier);
 			
 			default:
-				
-				return null;
+				return;
 			
 		}
 		
