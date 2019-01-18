@@ -7,6 +7,8 @@
 #include <Scale9.h>
 #include <nme/Pixel.h>
 
+#include "../src/opengl/NevoRenderPipeline.h"
+
 typedef unsigned int uint32;
 typedef unsigned char uint8;
 
@@ -609,18 +611,8 @@ public:
            WindingRule inWinding );
 
    void drawEllipse(float x,float  y,float  width,float  height);
-   void drawCircle(float x,float y, float radius) { drawEllipse(x,y,radius,radius); }
-   void drawRect(float x,float  y,float  width,float  height)
-   {
-      Flush();
-      moveTo(x,y);
-      lineTo(x+width,y);
-      lineTo(x+width,y+height);
-      lineTo(x,y+height);
-      lineTo(x,y);
-      Flush();
-		mVersion++;
-   }
+   void drawCircle(float x,float y, float radius);
+   void drawRect(float x, float y, float width, float height);
    void drawRoundRect(float x,float  y,float  width,float  height,float  ellipseWidth,float  ellipseHeight);
    void beginTiles(Surface *inSurface,bool inSmooth=false,int inBlendMode=0);
    void endTiles();
@@ -629,6 +621,11 @@ public:
    void drawTriangles(const QuickVec<float> &inXYs, const QuickVec<int> &inIndixes,
             const QuickVec<float> &inUVT, int inCull, const QuickVec<int> &inColours,
             int blendMode );
+#ifdef NEVO_RENDER
+   void drawTrianglesNevo(int inXYs_n, double *inXYs, int inIndixes_n, int *inIndixes,
+            int inUVT_n, double *inUVT, int inColours_n, int *inColours,
+            int inCull, int blendMode);
+#endif
 
    const Extent2DF &GetExtent0(double inRotation);
    bool  HitTest(const UserPoint &inPoint);
@@ -666,6 +663,14 @@ private:
 
    void BuiltExtent0(double inRotation);
 
+#ifdef NEVO_RENDER
+   Surface                   *mTileTexture;
+   int                       mTileBlendMode;
+   Surface                   *mFillTexture;
+   float                     mFillAlpha;
+   unsigned int              mFillColor;
+   nevo::Vec<nevo::Job>      mNevoJobs;
+#endif
 
 private:
    // Rule of 3 - we must manually clean up the jobs (performance optimisation)

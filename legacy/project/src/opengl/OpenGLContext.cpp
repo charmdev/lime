@@ -16,7 +16,7 @@
 #include "OpenGLS3D.h"
 #endif
 
-
+#include "NevoRenderPipeline.h"
 
 int sgDrawCount = 0;
 int sgDrawBitmap = 0;
@@ -101,6 +101,10 @@ public:
    {
       for(int i=0;i<PROG_COUNT;i++)
          delete mProg[i];
+
+#ifdef NEVO_RENDER
+      nevo::gNevoRender.Clear();
+#endif
    }
    bool IsOpenGL() const { return true; }
 
@@ -323,11 +327,17 @@ public:
          // printf("DrawArrays: %d, DrawBitmaps:%d  Buffers:%d\n", sgDrawCount, sgDrawBitmap, sgBufferCount );
          sgDrawCount = 0;
          sgDrawBitmap = 0;
+
+#ifdef NEVO_RENDER
+         nevo::gNevoRender.begin();
+#endif
       }
    }
    void EndRender()
    {
-
+#ifdef NEVO_RENDER
+      nevo::gNevoRender.end();
+#endif
    }
 
    void updateContext()
@@ -371,6 +381,19 @@ public:
 
    void Render(const RenderState &inState, const HardwareData &inData )
    {
+#ifdef NEVO_RENDER
+      SetViewport(inState.mClipRect);
+      if (mModelView!=*inState.mTransform.mMatrix)
+      {
+         mModelView=*inState.mTransform.mMatrix;
+         CombineModelView(mModelView);
+         mLineScaleV = -1;
+         mLineScaleH = -1;
+         mLineScaleNormal = -1;
+      }
+      const ColorTransform *ctrans = inState.mColourTransform;
+      nevo::gNevoRender.setNodeParams((float*)mTrans, ctrans->alphaMultiplier);
+#else
       if (!inData.mArray.size())
          return;
 
@@ -389,6 +412,7 @@ public:
          ctrans = 0;
 
       RenderData(inData,ctrans,mTrans);
+#endif
    }
 
    void RenderData(const HardwareData &inData, const ColorTransform *ctrans,const Trans4x4 &inTrans)
@@ -963,6 +987,10 @@ HardwareRenderer *HardwareRenderer::CreateOpenGL(void *inWindow, void *inGLCtx, 
       return 0;
 
    HardwareRenderer *ctx = new OGLContext( (WinDC)inWindow, (GLCtx)inGLCtx );
+
+#ifdef NEVO_RENDER
+   nevo::gNevoRender.Init();
+#endif
 
    return ctx;
 }

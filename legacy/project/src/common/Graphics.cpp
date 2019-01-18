@@ -12,8 +12,6 @@ void Graphics::OnChanged()
       mOwner->DirtyExtent();
 }
 
-
-
 // TODO: invlidate/cache extents (do for whole lot at once)
 
 Graphics::Graphics(DisplayObject *inOwner,bool inInitRef) : Object(inInitRef)
@@ -27,6 +25,11 @@ Graphics::Graphics(DisplayObject *inOwner,bool inInitRef) : Object(inInitRef)
    mMeasuredJobs = 0;
    mVersion = 0;
    mOwner = inOwner;
+
+#ifdef NEVO_RENDER
+   mTileTexture = 0;
+   mFillTexture = 0;
+#endif
 }
 
 
@@ -35,11 +38,27 @@ Graphics::~Graphics()
    mOwner = 0;
    clear();
    mPathData->DecRef();
+
+#ifdef NEVO_RENDER
+   if (mTileTexture) mTileTexture->DecRef();
+   if (mFillTexture) mFillTexture->DecRef();
+#endif
 }
 
 
 void Graphics::clear()
 {
+#ifdef NEVO_RENDER
+   for (int i = 0; i < mNevoJobs.size(); ++i)
+   {
+      if (mNevoJobs[i].mSurface)
+      {
+         mNevoJobs[i].mSurface->DecRef();
+      }
+      mNevoJobs[i].free_mem();
+   }
+   mNevoJobs.resize(0);
+#else
    mFillJob.clear();
    mLineJob.clear();
    mTileJob.clear();
@@ -62,6 +81,7 @@ void Graphics::clear()
    mMeasuredJobs = 0;
    mCursor = UserPoint(0,0);
    OnChanged();
+#endif
 }
 
 int Graphics::Version() const
@@ -77,6 +97,7 @@ int Graphics::Version() const
 
 void Graphics::drawEllipse(float x, float y, float width, float height)
 {
+#ifndef NEVO_RENDER
    x += width/2;
    y += height/2;
    float w = width*0.5;
@@ -100,6 +121,30 @@ void Graphics::drawEllipse(float x, float y, float width, float height)
 
    Flush();
    OnChanged();
+#endif
+}
+
+void Graphics::drawCircle(float x,float y, float radius)
+{
+   drawEllipse(x,y,radius,radius);
+}
+
+void Graphics::drawRect(float x, float y, float width, float height)
+{
+#ifdef NEVO_RENDER
+   nevo::Job &job = mNevoJobs.inc();
+   job.tex(mFillTexture);
+   job.rect(x, y, width, height);
+#else
+   Flush();
+   moveTo(x,y);
+   lineTo(x+width,y);
+   lineTo(x+width,y+height);
+   lineTo(x,y+height);
+   lineTo(x,y);
+   Flush();
+   mVersion++;
+#endif
 }
 
 /*
@@ -123,6 +168,7 @@ void Graphics::drawEllipse(float x, float y, float width, float height)
 
 void Graphics::drawRoundRect(float x,float  y,float  width,float  height,float  rx,float  ry)
 {
+#ifndef NEVO_RENDER
    rx *= 0.5;
    ry *= 0.5;
    float w = width*0.5;
@@ -156,11 +202,13 @@ void Graphics::drawRoundRect(float x,float  y,float  width,float  height,float  
 
    Flush();
    OnChanged();
+#endif
 }
 
 void Graphics::drawPath(const QuickVec<uint8> &inCommands, const QuickVec<float> &inData,
            WindingRule inWinding )
 {
+#ifndef NEVO_RENDER
    int n = inCommands.size();
    if (n==0 || inData.size()<2)
       return;
@@ -200,12 +248,22 @@ void Graphics::drawPath(const QuickVec<uint8> &inCommands, const QuickVec<float>
       }
    }
    OnChanged();
+#endif
 }
 
 
 
 void Graphics::drawGraphicsDatum(IGraphicsData *inData)
 {
+#ifdef NEVO_RENDER
+   GraphicsBitmapFill *bf = inData->AsBitmapFill();
+   if (bf)
+   {
+      if (mFillTexture) mFillTexture->DecRef();
+      mFillTexture = bf->bitmapData;
+      if (mFillTexture) mFillTexture->IncRef();
+   }
+#else
    switch(inData->GetType())
    {
       case gdtUnknown: break;
@@ -263,17 +321,26 @@ void Graphics::drawGraphicsDatum(IGraphicsData *inData)
 
    }
    OnChanged();
+#endif
 }
 
 void Graphics::drawGraphicsData(IGraphicsData **graphicsData,int inN)
 {
+#ifndef NEVO_RENDER
    for(int i=0;i<inN;i++)
       drawGraphicsDatum(graphicsData[i]);
    OnChanged();
+#endif
 }
 
 void Graphics::beginFill(unsigned int color, float alpha)
 {
+#ifdef NEVO_RENDER
+   if (mFillTexture) mFillTexture->DecRef();
+   mFillTexture = 0;
+   mFillAlpha = alpha;
+   mFillColor = color;
+#else
    Flush(false,true,true);
    endTiles();
    if (mFillJob.mFill)
@@ -282,21 +349,29 @@ void Graphics::beginFill(unsigned int color, float alpha)
    mFillJob.mFill->IncRef();
    if (mFillJob.mCommand0 == mPathData->commands.size())
       mPathData->initPosition(mCursor);
+#endif
 }
 
 void Graphics::endFill()
 {
+#ifndef NEVO_RENDER
    Flush(true,true);
    if (mFillJob.mFill)
    {
       mFillJob.mFill->DecRef();
       mFillJob.mFill = 0;
    }
+#endif
 }
 
 void Graphics::beginBitmapFill(Surface *bitmapData, const Matrix &inMatrix,
    bool inRepeat, bool inSmooth)
 {
+#ifdef NEVO_RENDER
+   if (mFillTexture) mFillTexture->DecRef();
+   mFillTexture = bitmapData;
+   if (mFillTexture) mFillTexture->IncRef();
+#else
    Flush(false,true,true);
    endTiles();
    if (mFillJob.mFill)
@@ -305,10 +380,12 @@ void Graphics::beginBitmapFill(Surface *bitmapData, const Matrix &inMatrix,
    mFillJob.mFill->IncRef();
    if (mFillJob.mCommand0 == mPathData->commands.size())
       mPathData->initPosition(mCursor);
+#endif
 }
 
 void Graphics::endTiles()
 {
+#ifndef NEVO_RENDER
    if (mTileJob.mFill)
    {
       mTileJob.mFill->DecRef();
@@ -316,10 +393,17 @@ void Graphics::endTiles()
 
       OnChanged();
    }
+#endif
 }
 
 void Graphics::beginTiles(Surface *bitmapData,bool inSmooth,int inBlendMode)
 {
+#ifdef NEVO_RENDER
+   if (mTileTexture) mTileTexture->DecRef();
+   mTileTexture = bitmapData;
+   if (mTileTexture) mTileTexture->IncRef();
+   mTileBlendMode = inBlendMode;
+#else
    endFill();
    lineStyle(-1);
    Flush();
@@ -328,6 +412,7 @@ void Graphics::beginTiles(Surface *bitmapData,bool inSmooth,int inBlendMode)
    mTileJob.mFill = new GraphicsBitmapFill(bitmapData,Matrix(),false,inSmooth);
    mTileJob.mFill->IncRef();
    mPathData->elementBlendMode(inBlendMode);
+#endif
 }
 
 void Graphics::lineStyle(double thickness, unsigned int color, double alpha,
@@ -335,6 +420,7 @@ void Graphics::lineStyle(double thickness, unsigned int color, double alpha,
                   StrokeCaps caps,
                   StrokeJoints joints, double miterLimit)
 {
+#ifndef NEVO_RENDER
    Flush(true,false,true);
    endTiles();
    if (mLineJob.mStroke)
@@ -351,12 +437,14 @@ void Graphics::lineStyle(double thickness, unsigned int color, double alpha,
       if (mLineJob.mCommand0 == mPathData->commands.size())
          mPathData->initPosition(mCursor);
    }
+#endif
 }
 
 
 
 void Graphics::lineTo(float x, float y)
 {
+#ifndef NEVO_RENDER
    if ( (mFillJob.mFill && mFillJob.mCommand0==mPathData->commands.size()) ||
         (mLineJob.mStroke && mLineJob.mCommand0==mPathData->commands.size()) )
      mPathData->initPosition(mCursor);
@@ -364,17 +452,21 @@ void Graphics::lineTo(float x, float y)
    mPathData->lineTo(x,y);
    mCursor = UserPoint(x,y);
    OnChanged();
+#endif
 }
 
 void Graphics::moveTo(float x, float y)
 {
+#ifndef NEVO_RENDER
    mPathData->moveTo(x,y);
    mCursor = UserPoint(x,y);
    OnChanged();
+#endif
 }
 
 void Graphics::curveTo(float cx, float cy, float x, float y)
 {
+#ifndef NEVO_RENDER
    if ( (mFillJob.mFill && mFillJob.mCommand0==mPathData->commands.size()) ||
         (mLineJob.mStroke && mLineJob.mCommand0==mPathData->commands.size()) )
      mPathData->initPosition(mCursor);
@@ -388,10 +480,12 @@ void Graphics::curveTo(float cx, float cy, float x, float y)
       mPathData->curveTo(cx,cy,x,y);
    mCursor = UserPoint(x,y);
    OnChanged();
+#endif
 }
 
 void Graphics::arcTo(float cx, float cy, float x, float y)
 {
+#ifndef NEVO_RENDER
    if ( (mFillJob.mFill && mFillJob.mCommand0==mPathData->commands.size()) ||
         (mLineJob.mStroke && mLineJob.mCommand0==mPathData->commands.size()) )
      mPathData->initPosition(mCursor);
@@ -399,17 +493,25 @@ void Graphics::arcTo(float cx, float cy, float x, float y)
    mPathData->arcTo(cx,cy,x,y);
    mCursor = UserPoint(x,y);
    OnChanged();
+#endif
 }
 
 void Graphics::tile(float x, float y, const Rect &inTileRect,float *inTrans,float *inRGBA)
 {
+#ifdef NEVO_RENDER
+   nevo::Job &job = mNevoJobs.inc();
+   job.tex(mTileTexture);
+   job.tile(x, y, inTileRect, inTrans, inRGBA, mTileBlendMode);
+#else
    mPathData->tile(x,y,inTileRect,inTrans,inRGBA);
+#endif
 }
 
 
 void Graphics::drawPoints(QuickVec<float> inXYs, QuickVec<int> inRGBAs, unsigned int inDefaultRGBA,
 								  double inSize)
 {
+#ifndef NEVO_RENDER
    endFill();
    lineStyle(-1);
    Flush();
@@ -433,6 +535,7 @@ void Graphics::drawPoints(QuickVec<float> inXYs, QuickVec<int> inRGBAs, unsigned
 	}
 
    mJobs.push_back(job);
+#endif
 }
 
 void Graphics::drawTriangles(const QuickVec<float> &inXYs,
@@ -441,6 +544,7 @@ void Graphics::drawTriangles(const QuickVec<float> &inXYs,
             const QuickVec<int> &inColours,
             int blendMode)
 {
+#ifndef NEVO_RENDER
 	Flush( );
 	
 	if (!mFillJob.mFill)
@@ -463,9 +567,21 @@ void Graphics::drawTriangles(const QuickVec<float> &inXYs,
    job.mTriangles = path;
 
    mJobs.push_back(job);
+#endif
 }
 
-
+#ifdef NEVO_RENDER
+void Graphics::drawTrianglesNevo(int inXYs_n, double *inXYs,
+            int inIndixes_n, int *inIndixes, int inUVT_n, double *inUVT,
+            int inColours_n, int *inColours, int inCull, int blendMode)
+{
+   nevo::Job &job = mNevoJobs.inc();
+   job.tex(mFillTexture);
+   job.triangles(inXYs_n, inXYs,
+      inIndixes_n, inIndixes, inUVT_n, inUVT,
+      inColours_n, inColours, inCull, blendMode, mFillColor, mFillAlpha);
+}
+#endif
 
 // This routine converts a list of "GraphicsPaths" (mItems) into a list
 //  of LineData and SolidData.
@@ -474,6 +590,7 @@ void Graphics::drawTriangles(const QuickVec<float> &inXYs,
 
 void Graphics::Flush(bool inLine, bool inFill, bool inTile)
 {
+#ifndef NEVO_RENDER
    int n = mPathData->commands.size();
    int d = mPathData->data.size();
    bool wasFilled = false;
@@ -558,12 +675,37 @@ void Graphics::Flush(bool inLine, bool inFill, bool inTile)
       mFillJob.mCommand0 = n;
       mFillJob.mData0 = d;
    }
-
+#endif
 }
 
 
 Extent2DF Graphics::GetSoftwareExtent(const Transform &inTransform, bool inIncludeStroke)
 {
+#ifdef NEVO_RENDER
+   static const Matrix *m;
+   static float x, y;
+   Extent2DF result;
+
+   m = inTransform.mMatrix;
+   for (int i = 0; i < mNevoJobs.size(); ++i)
+   {
+      nevo::Job &job = mNevoJobs[i];
+      if (job.mType == nevo::Job::Type::RECT)
+      {
+         for (int j = 0; j < job.mXY_n; ++j)
+         {
+            if (((j + 1) % 2) == 0)
+            {
+               //UserPoint p = inTransform.Apply(job.mXY[j - 1], job.mXY[j]);
+               x = job.mXY[j - 1]; y = job.mXY[j];
+               result.Add(m->m00 * x + m->m01 * y + m->mtx, m->m10 * x + m->m11 * y + m->mty);
+            }
+         }
+      }
+   }
+
+   return result;
+#else
    Extent2DF result;
    Flush();
 
@@ -577,6 +719,7 @@ Extent2DF Graphics::GetSoftwareExtent(const Transform &inTransform, bool inInclu
    }
 
    return result;
+#endif
 }
 
 const Extent2DF &Graphics::GetExtent0(double inRotation)
@@ -598,6 +741,27 @@ const Extent2DF &Graphics::GetExtent0(double inRotation)
 
 bool Graphics::Render( const RenderTarget &inTarget, const RenderState &inState )
 {
+#ifdef NEVO_RENDER
+   if (inState.mPhase==rpHitTest)
+   {
+      if (inState.mClipRect.w!=1 || inState.mClipRect.h!=1)
+         return false;
+      UserPoint screen(inState.mClipRect.x, inState.mClipRect.y);
+      UserPoint pos = inState.mTransform.mMatrix->ApplyInverse(screen);
+      
+      for (int i = 0; i < mNevoJobs.size(); ++i)
+      {
+         if (mNevoJobs[i].hitTest(pos.x, pos.y))
+            return true;
+      }
+      return false;
+   }
+   else
+   {
+      nevo::gNevoRender.setJobs(&mNevoJobs);
+      inTarget.mHardware->Render(inState,*mHardwareData);
+   }
+#else
    Flush();
    
    #ifdef NME_DIRECTFB
@@ -676,6 +840,8 @@ bool Graphics::Render( const RenderTarget &inTarget, const RenderState &inState 
    }
    
    #endif
+
+#endif //NEVO_RENDER
 
    return false;
 }
