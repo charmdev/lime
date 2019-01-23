@@ -29,6 +29,7 @@ Graphics::Graphics(DisplayObject *inOwner,bool inInitRef) : Object(inInitRef)
 #ifdef NEVO_RENDER
    mTileTexture = 0;
    mFillTexture = 0;
+   mFillBGRA = 0xFFFFFFFF;
 #endif
 }
 
@@ -134,7 +135,7 @@ void Graphics::drawRect(float x, float y, float width, float height)
 #ifdef NEVO_RENDER
    nevo::Job &job = mNevoJobs.inc();
    job.tex(mFillTexture);
-   job.rect(x, y, width, height);
+   job.rect(x, y, width, height, mFillBGRA, mOwner->getBlendMode());
 #else
    Flush();
    moveTo(x,y);
@@ -256,12 +257,26 @@ void Graphics::drawPath(const QuickVec<uint8> &inCommands, const QuickVec<float>
 void Graphics::drawGraphicsDatum(IGraphicsData *inData)
 {
 #ifdef NEVO_RENDER
-   GraphicsBitmapFill *bf = inData->AsBitmapFill();
-   if (bf)
+   switch(inData->GetType())
    {
-      if (mFillTexture) mFillTexture->DecRef();
-      mFillTexture = bf->bitmapData;
-      if (mFillTexture) mFillTexture->IncRef();
+      case gdtBitmapFill:
+         {
+            GraphicsBitmapFill *bf = inData->AsBitmapFill();
+            if (mFillTexture) mFillTexture->DecRef();
+            mFillTexture = bf->bitmapData;
+            if (mFillTexture) mFillTexture->IncRef();
+            mFillBGRA = 0xFFFFFFFF;
+         }
+         break;
+
+      case gdtSolidFill:
+         {
+            GraphicsSolidFill *sf = inData->AsSolidFill();
+            if (mFillTexture) mFillTexture->DecRef();
+            mFillTexture = 0;
+            mFillBGRA = sf->mRGB.ival;
+         }
+         break;
    }
 #else
    switch(inData->GetType())
@@ -338,8 +353,8 @@ void Graphics::beginFill(unsigned int color, float alpha)
 #ifdef NEVO_RENDER
    if (mFillTexture) mFillTexture->DecRef();
    mFillTexture = 0;
-   mFillAlpha = alpha;
-   mFillColor = color;
+   mFillBGRA = (color & 0xFFFFFF00);
+   mFillBGRA |= ((int)(255 * alpha) << 24);
 #else
    Flush(false,true,true);
    endTiles();
@@ -371,6 +386,7 @@ void Graphics::beginBitmapFill(Surface *bitmapData, const Matrix &inMatrix,
    if (mFillTexture) mFillTexture->DecRef();
    mFillTexture = bitmapData;
    if (mFillTexture) mFillTexture->IncRef();
+   mFillBGRA = 0xFFFFFFFF;
 #else
    Flush(false,true,true);
    endTiles();
@@ -501,7 +517,15 @@ void Graphics::tile(float x, float y, const Rect &inTileRect,float *inTrans,floa
 #ifdef NEVO_RENDER
    nevo::Job &job = mNevoJobs.inc();
    job.tex(mTileTexture);
-   job.tile(x, y, inTileRect, inTrans, inRGBA, mTileBlendMode);
+   int bgra = 0xFFFFFFFF;
+   if (inRGBA)
+   {
+      bgra = (int)(255 * inRGBA[2]);
+      bgra |= ((int)(255 * inRGBA[1]) << 8);
+      bgra |= ((int)(255 * inRGBA[0]) << 16);
+      bgra |= ((int)(255 * inRGBA[3]) << 24);
+   }
+   job.tile(x, y, inTileRect, inTrans, bgra, mTileBlendMode);
 #else
    mPathData->tile(x,y,inTileRect,inTrans,inRGBA);
 #endif
@@ -579,7 +603,7 @@ void Graphics::drawTrianglesNevo(int inXYs_n, double *inXYs,
    job.tex(mFillTexture);
    job.triangles(inXYs_n, inXYs,
       inIndixes_n, inIndixes, inUVT_n, inUVT,
-      inColours_n, inColours, inCull, blendMode, mFillColor, mFillAlpha);
+      inColours_n, inColours, mFillBGRA, blendMode);
 }
 #endif
 
@@ -696,7 +720,6 @@ Extent2DF Graphics::GetSoftwareExtent(const Transform &inTransform, bool inInclu
          {
             if (((j + 1) % 2) == 0)
             {
-               //UserPoint p = inTransform.Apply(job.mXY[j - 1], job.mXY[j]);
                x = job.mXY[j - 1]; y = job.mXY[j];
                result.Add(m->m00 * x + m->m01 * y + m->mtx, m->m10 * x + m->m11 * y + m->mty);
             }
@@ -742,24 +765,27 @@ const Extent2DF &Graphics::GetExtent0(double inRotation)
 bool Graphics::Render( const RenderTarget &inTarget, const RenderState &inState )
 {
 #ifdef NEVO_RENDER
-   if (inState.mPhase==rpHitTest)
+   if (inTarget.IsHardware())
    {
-      if (inState.mClipRect.w!=1 || inState.mClipRect.h!=1)
-         return false;
-      UserPoint screen(inState.mClipRect.x, inState.mClipRect.y);
-      UserPoint pos = inState.mTransform.mMatrix->ApplyInverse(screen);
-      
-      for (int i = 0; i < mNevoJobs.size(); ++i)
+      if (inState.mPhase==rpHitTest)
       {
-         if (mNevoJobs[i].hitTest(pos.x, pos.y))
-            return true;
+         if (inState.mClipRect.w!=1 || inState.mClipRect.h!=1)
+            return false;
+         UserPoint screen(inState.mClipRect.x, inState.mClipRect.y);
+         UserPoint pos = inState.mTransform.mMatrix->ApplyInverse(screen);
+         
+         for (int i = 0; i < mNevoJobs.size(); ++i)
+         {
+            if (mNevoJobs[i].hitTest(pos.x, pos.y))
+               return true;
+         }
+         return false;
       }
-      return false;
-   }
-   else
-   {
-      nevo::gNevoRender.setJobs(&mNevoJobs);
-      inTarget.mHardware->Render(inState,*mHardwareData);
+      else
+      {
+         nevo::gNevoRender.setJobs(&mNevoJobs);
+         inTarget.mHardware->Render(inState,*mHardwareData);
+      }
    }
 #else
    Flush();

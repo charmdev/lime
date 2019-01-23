@@ -22,15 +22,16 @@ void Job::tex(nme::Surface *surface)
 {
     mSurface = surface;
     if (mSurface) mSurface->IncRef();
-    mTexColor = mSurface ? mSurface->getTextureId() : 0;
-    mTexAlpha = mSurface ? mSurface->getAlphaTextureId() : 0;
-    mTexW = (float)(mSurface ? mSurface->getTextureWidth() : 0);
-    mTexH = (float)(mSurface ? mSurface->getTextureHeight() : 0);
-    mTexPixW = (float)(mSurface ? mSurface->Width() : 0);
-    mTexPixH = (float)(mSurface ? mSurface->Height() : 0);
+    mPremultAlpha = mSurface ? (mSurface->GetFlags() & nme::surfUsePremultipliedAlpha) : false;
+    mTexColor = mSurface ? mSurface->getTextureId() : 1.0f;
+    mTexAlpha = mSurface ? mSurface->getAlphaTextureId() : 1.0f;
+    mTexW = (float)(mSurface ? mSurface->getTextureWidth() : 1.0f);
+    mTexH = (float)(mSurface ? mSurface->getTextureHeight() : 1.0f);
+    mTexPixW = (float)(mSurface ? mSurface->Width() : 1.0f);
+    mTexPixH = (float)(mSurface ? mSurface->Height() : 1.0f);
 }
 
-void Job::rect(float x, float y, float width, float height)
+void Job::rect(float x, float y, float width, float height, int bgra, int blendMode)
 {
     mXY_n = 8;
     mXY = (float*)malloc(mXY_n * sizeof(float));
@@ -61,9 +62,10 @@ void Job::rect(float x, float y, float width, float height)
     }
 
     mType = Job::Type::RECT;
+    mBlendMode = toBlendMode(blendMode);
 }
 
-void Job::tile(float x, float y, const nme::Rect &inTileRect, float *inTrans, float *inRGBA, int blendMode)
+void Job::tile(float x, float y, const nme::Rect &inTileRect, float *inTrans, int bgra, int blendMode)
 {
     mXY_n = 8;
     mXY = (float*)malloc(mXY_n * sizeof(float));
@@ -90,11 +92,12 @@ void Job::tile(float x, float y, const nme::Rect &inTileRect, float *inTrans, fl
     }
 
     mType = Job::Type::TILE;
+    mBlendMode = toBlendMode(blendMode);
 }
 
 void Job::triangles(int inXYs_n, double *inXYs,
     int inIndixes_n, int *inIndixes, int inUVT_n, double *inUVT,
-    int inColours_n, int *inColours, int inCull, int blendMode, unsigned int color, float alpha)
+    int inColours_n, int *inColours, int bgra, int blendMode)
 {
     mXY_n = inXYs_n;
     mXY = (float*)malloc(mXY_n * sizeof(float));
@@ -112,6 +115,7 @@ void Job::triangles(int inXYs_n, double *inXYs,
     memcpy(mInd, inIndixes, mInd_n * sizeof(int));
 
     mType = Job::Type::TRIANGLES;
+    mBlendMode = toBlendMode(blendMode);
 }
 
 bool Job::hitTest(float x, float y)
@@ -142,6 +146,21 @@ void Job::free_mem()
     if (mInd && mInd_n && mInd != gTileIndices) free(mInd);
     mXY = 0; mUV = 0; mInd = 0;
     mXY_n = mUV_n = mInd_n = 0;
+}
+
+Job::BlendMode Job::toBlendMode(int blendMode)
+{
+    switch (blendMode)
+    {
+        case Job::BlendMode::NONE:
+            return Job::BlendMode::NONE;
+        case Job::BlendMode::NORMAL:
+            return Job::BlendMode::NORMAL;
+        case Job::BlendMode::ADD:
+            return Job::BlendMode::ADD;
+        default:
+            return Job::BlendMode::NORMAL;
+    }  
 }
 
 class GPUProgram
@@ -268,32 +287,36 @@ public:
     DefaultShader()
     {
         //precision mediump float;
-        mVertSrc = "                                            \
-            uniform mat4 u_m;                                   \
-            uniform vec2 u_ts;                                  \
-                                                                \
-            attribute vec2 a_xy;                                \
-            attribute vec2 a_uv;                                \
-                                                                \
-            varying vec2 v_uv;                                  \
-                                                                \
-            void main()                                         \
-            {                                                   \
-                v_uv = a_uv * u_ts;                             \
-                gl_Position = vec4(a_xy, 0.0, 1.0) * u_m;       \
-            }                                                   \
+        mVertSrc = "                                                    \
+            uniform mat4 u_m;                                           \
+            uniform vec2 u_ts;                                          \
+            uniform vec4 u_c;                                           \
+                                                                        \
+            attribute vec2 a_xy;                                        \
+            attribute vec2 a_uv;                                        \
+                                                                        \
+            varying vec2 v_uv;                                          \
+            varying vec4 v_c;                                           \
+                                                                        \
+            void main()                                                 \
+            {                                                           \
+                v_uv = a_uv * u_ts;                                     \
+                v_c = u_c;                                              \
+                gl_Position = vec4(a_xy, 0.0, 1.0) * u_m;               \
+            }                                                           \
         ";
 
-        mFragSrc = "                                            \
-            uniform sampler2D u_t[8];                           \
-                                                                \
-            varying vec2 v_uv;                                  \
-                                                                \
-            void main()                                         \
-            {                                                   \
-                vec4 texel = texture2D(u_t[0], v_uv);           \
-                gl_FragColor = texel;                           \
-            }                                                   \
+        mFragSrc = "                                                    \
+            uniform sampler2D u_t[8];                                   \
+                                                                        \
+            varying vec2 v_uv;                                          \
+            varying vec4 v_c;                                           \
+                                                                        \
+            void main()                                                 \
+            {                                                           \
+                vec4 texel = texture2D(u_t[0], v_uv);                   \
+                gl_FragColor = texel * v_c;                             \
+            }                                                           \
         ";
 
         createProgram();
@@ -303,6 +326,7 @@ public:
         mU_M = getUniformLoc("u_m");
         mU_T = getUniformLoc("u_t");
         mU_TS = getUniformLoc("u_ts");
+        mU_C = getUniformLoc("u_c");
     }
 
     GLuint mA_XY;
@@ -310,6 +334,7 @@ public:
     GLuint mU_M;
     GLuint mU_T;
     GLuint mU_TS;
+    GLuint mU_C;
 private:
 
 };
@@ -350,15 +375,17 @@ void NevoRenderPipeline::setJobs(Vec<Job> *jobs)
     mJobs = jobs;
 }
 
-void NevoRenderPipeline::setNodeParams(float *inTrans, float alpha)
+void NevoRenderPipeline::setNodeParams(float *inTrans4x4, float r, float g, float b, float a)
 {
+    mDefaultShader->setMatrix4x4fv(mDefaultShader->mU_M, inTrans4x4);
+    mDefaultShader->setUniform4f(mDefaultShader->mU_C, r, g, b, a);
+
     for (int i = 0; i < mJobs->size(); ++i)
     {
         Job &job = (*mJobs)[i];
         if (job.mSurface)
         {
             glBindTexture(GL_TEXTURE_2D, job.mTexColor);
-            mDefaultShader->setMatrix4x4fv(mDefaultShader->mU_M, inTrans);
             if (job.mType == Job::Type::TRIANGLES)
                 mDefaultShader->setUniform2f(mDefaultShader->mU_TS, job.mTexPixW / job.mTexW, job.mTexPixH / job.mTexH);
             else

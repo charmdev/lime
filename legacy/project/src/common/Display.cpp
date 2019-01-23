@@ -184,8 +184,12 @@ void DisplayObject::CheckCacheDirty(bool inForHardware)
 
 bool DisplayObject::IsBitmapRender(bool inHardware)
 {
+#ifdef NEVO_RENDER
+   return false;
+#else
    return cacheAsBitmap || blendMode!=bmNormal || NonNormalBlendChild() || filters.size() ||
                                       (inHardware && mMask);
+#endif
 }
 
 void DisplayObject::SetBitmapCache(BitmapCache *inCache)

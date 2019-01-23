@@ -82,13 +82,16 @@ private:
     T *mPtr;
 };
 
-struct Job
+class Job
 {
+public:
     enum Type {RECT, TILE, TRIANGLES};
+    enum BlendMode {NONE = -1, NORMAL = 0, ADD = 7};
 
     Job() {}
 
     nme::Surface *mSurface;
+    bool mPremultAlpha;
     int mTexColor;
     int mTexAlpha;
     float mTexPixW;
@@ -104,15 +107,19 @@ struct Job
     int mInd_n;
 
     Type mType;
+    BlendMode mBlendMode;
     
     void tex(nme::Surface *surface);
-    void rect(float x, float y, float width, float height);
-    void tile(float x, float y, const nme::Rect &inTileRect, float *inTrans, float *inRGBA, int blendMode);
+    void rect(float x, float y, float width, float height, int bgra, int blendMode);
+    void tile(float x, float y, const nme::Rect &inTileRect, float *inTrans, int bgra, int blendMode);
     void triangles(int inXYs_n, double *inXYs,
         int inIndixes_n, int *inIndixes, int inUVT_n, double *inUVT,
-        int inColours_n, int *inColours, int inCull, int blendMode, unsigned int color, float alpha);
+        int inColours_n, int *inColours, int bgra, int blendMode);
     bool hitTest(float x, float y);
     void free_mem();
+
+private:
+    BlendMode toBlendMode(int blendMode);
 };
 
 class NevoRenderPipeline
@@ -125,7 +132,7 @@ public:
     void Clear();
 
     void setJobs(Vec<Job> *jobs);
-    void setNodeParams(float *inTrans, float alpha);
+    void setNodeParams(float *inTrans4x4, float r, float g, float b, float a);
     void begin();
     void end();
 

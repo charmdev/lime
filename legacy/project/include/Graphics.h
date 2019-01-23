@@ -667,8 +667,7 @@ private:
    Surface                   *mTileTexture;
    int                       mTileBlendMode;
    Surface                   *mFillTexture;
-   float                     mFillAlpha;
-   unsigned int              mFillColor;
+   int                       mFillBGRA;
    nevo::Vec<nevo::Job>      mNevoJobs;
 #endif
 
