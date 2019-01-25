@@ -51,14 +51,11 @@ void Graphics::clear()
 {
 #ifdef NEVO_RENDER
    for (int i = 0; i < mNevoJobs.size(); ++i)
-   {
-      if (mNevoJobs[i].mSurface)
-      {
-         mNevoJobs[i].mSurface->DecRef();
-      }
       mNevoJobs[i].free_mem();
-   }
    mNevoJobs.resize(0);
+   for (int i = 0; i < mUsedSurfaces.size(); ++i)
+      mUsedSurfaces[i]->DecRef();
+   mUsedSurfaces.resize(0);
 #else
    mFillJob.clear();
    mLineJob.clear();
@@ -353,8 +350,8 @@ void Graphics::beginFill(unsigned int color, float alpha)
 #ifdef NEVO_RENDER
    if (mFillTexture) mFillTexture->DecRef();
    mFillTexture = 0;
-   mFillBGRA = (color & 0xFFFFFF00);
-   mFillBGRA |= ((int)(255 * alpha) << 24);
+   mFillBGRA = color;
+   mFillBGRA |= ((unsigned int)(255 * alpha) << 24);
 #else
    Flush(false,true,true);
    endTiles();
@@ -517,13 +514,13 @@ void Graphics::tile(float x, float y, const Rect &inTileRect,float *inTrans,floa
 #ifdef NEVO_RENDER
    nevo::Job &job = mNevoJobs.inc();
    job.tex(mTileTexture);
-   int bgra = 0xFFFFFFFF;
+   unsigned int bgra = 0xFFFFFFFF;
    if (inRGBA)
    {
-      bgra = (int)(255 * inRGBA[2]);
-      bgra |= ((int)(255 * inRGBA[1]) << 8);
-      bgra |= ((int)(255 * inRGBA[0]) << 16);
-      bgra |= ((int)(255 * inRGBA[3]) << 24);
+      bgra = (unsigned int)(255 * inRGBA[2]);
+      bgra |= ((unsigned int)(255 * inRGBA[1]) << 8);
+      bgra |= ((unsigned int)(255 * inRGBA[0]) << 16);
+      bgra |= ((unsigned int)(255 * inRGBA[3]) << 24);
    }
    job.tile(x, y, inTileRect, inTrans, bgra, mTileBlendMode);
 #else

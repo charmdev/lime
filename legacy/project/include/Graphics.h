@@ -667,8 +667,43 @@ private:
    Surface                   *mTileTexture;
    int                       mTileBlendMode;
    Surface                   *mFillTexture;
-   int                       mFillBGRA;
+   unsigned int              mFillBGRA;
+
    nevo::Vec<nevo::Job>      mNevoJobs;
+   nevo::Vec<Surface*>       mUsedSurfaces;
+
+   void setJobMtlData(nevo::Job *job, Surface *surface, unsigned int color, int blendMode)
+   {
+      if (surface)
+      {
+         surface->IncRef();
+         mUsedSurfaces.inc() = surface;
+      }
+
+      job->mTexColor = surface ? surface->getTextureId() : 0;
+      job->mTexAlpha = surface ? surface->getAlphaTextureId() : 0;
+      job->mTexW = surface ? surface->getTextureWidth() : 1;
+      job->mTexH = surface ? surface->getTextureHeight() : 1;
+      job->mTexPixW = surface ? surface->Width() : 1;
+      job->mTexPixH = surface ? surface->Height() : 1;
+      if (surface ? (surface->GetFlags() & surfUsePremultipliedAlpha) : false)
+         job->setPremultAlpha();
+
+      job->mBGRA = color;
+
+      switch(blendMode)
+      {
+         case bmNormal:
+            job->setBlendModeNormal();
+            break;
+         case bmAdd:
+            job->setBlendModeAdd();
+            break;
+         default:
+            job->setBlendModeNone();
+            break;
+      }
+   }
 #endif
 
 private:

@@ -41,7 +41,7 @@
 	<files id="lime-legacy">
 		
 		<compilerflag value="-I${LEGACY_INCLUDE_DIR}" />
-		<compilerflag value="-DNEVO_RENDER" />
+		<!-- <compilerflag value="-DNEVO_RENDER" /> -->
 		
 		<section if="windows">
 			

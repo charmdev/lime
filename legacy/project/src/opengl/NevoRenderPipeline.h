@@ -3,14 +3,6 @@
 
 #include <memory.h>
 #include <stdlib.h>
-#include <nme/Rect.h>
-
-namespace nme 
-{
-
-class Surface;
-
-}
 
 namespace nevo
 {
@@ -82,44 +74,61 @@ private:
     T *mPtr;
 };
 
-class Job
+template <typename T>
+class List
 {
 public:
-    enum Type {RECT, TILE, TRIANGLES};
-    enum BlendMode {NONE = -1, NORMAL = 0, ADD = 7};
 
+
+private:
+    Vec<T*> mTPtr;
+};
+
+struct Job
+{
     Job() {}
 
-    nme::Surface *mSurface;
-    bool mPremultAlpha;
-    int mTexColor;
-    int mTexAlpha;
-    float mTexPixW;
-    float mTexPixH;
-    float mTexW;
-    float mTexH;
-  
-    float *mXY;
-    int mXY_n;
-    float *mUV;
-    int mUV_n;
-    int *mInd;
-    int mInd_n;
+    unsigned short int mTexColor, mTexAlpha;
+    unsigned short int mTexW, mTexH;
+    unsigned short int mTexPixW, mTexPixH;
+    union {
+        unsigned int mBGRA;
+        struct { unsigned char mB, mG, mR, mA; };
+    };
 
-    Type mType;
-    BlendMode mBlendMode;
+    float *mXY;
+    unsigned short int mXY_n;
+    float *mUV;
+    unsigned short int mUV_n;
+    unsigned short int *mInd;
+    unsigned short int mInd_n;
     
-    void tex(nme::Surface *surface);
-    void rect(float x, float y, float width, float height, int bgra, int blendMode);
-    void tile(float x, float y, const nme::Rect &inTileRect, float *inTrans, int bgra, int blendMode);
+    void rect(float x, float y, float width, float height);
+    void tile(float x, float y, int rectX, int rectY, int rectW, int rectH, float *inTrans);
     void triangles(int inXYs_n, double *inXYs,
         int inIndixes_n, int *inIndixes, int inUVT_n, double *inUVT,
-        int inColours_n, int *inColours, int bgra, int blendMode);
+        int inColours_n, int *inColours);
     bool hitTest(float x, float y);
     void free_mem();
 
-private:
-    BlendMode toBlendMode(int blendMode);
+    //
+    unsigned char mFlags;
+    void setTypeRect() { mFlags |= 1; }
+    void setTypeTile() { mFlags |= 2; }
+    void setTypeTriangles() { mFlags |= 4; }
+    bool isTypeRect() { return mFlags & 1; }
+    bool isTypeTile() { return mFlags & 2; }
+    bool isTypeTriangles() { return mFlags & 4; }
+    //
+    void setBlendModeNone() { mFlags |= 8; }
+    void setBlendModeNormal() { mFlags |= 16; }
+    void setBlendModeAdd() { mFlags |= 32; }
+    bool isBlendModeNone() { return mFlags & 8; }
+    bool isBlendModeNormal() { return mFlags & 16; }
+    bool isBlendModeAdd() { return mFlags & 32; }
+    //
+    void setPremultAlpha() { mFlags |= 64; }
+    bool isPremultAlpha() { return mFlags & 64; }
 };
 
 class NevoRenderPipeline
@@ -145,10 +154,6 @@ private:
     Vec<int> mChTex;
     Vec<int> mTexCh;
     Vec<int> mChUVal;
-
-    Vec<float> mXY;
-    Vec<float> mUV;
-    Vec<int> mInd;
 };
 
 extern NevoRenderPipeline gNevoRender;
