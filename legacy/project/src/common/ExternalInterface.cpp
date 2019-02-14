@@ -2729,13 +2729,11 @@ value nme_gfx_draw_triangles(value *arg, int args )
    {
 #ifdef NEVO_RENDER
       int xy_n = 0;
-      //float *xy = 0;
-      double *xy = 0;
+      float *xy = 0;
       if (!val_is_null(arg[aVertices]))
       {
          xy_n = val_array_size(arg[aVertices]);
-         //xy = val_array_float(arg[aVertices]);
-         xy = val_array_double(arg[aVertices]);
+         xy = val_array_float(arg[aVertices]);
       }
 
       int i_n = 0;
@@ -2747,13 +2745,11 @@ value nme_gfx_draw_triangles(value *arg, int args )
       }
 
       int uv_n = 0;
-      //float *uv = 0;
-      double *uv = 0;
+      float *uv = 0;
       if (!val_is_null(arg[aUVData]))
       {
          uv_n = val_array_size(arg[aUVData]);
-         //uv = val_array_float(arg[aUVData]);
-         uv = val_array_double(arg[aUVData]);
+         uv = val_array_float(arg[aUVData]);
       }
 
       int c_n = 0;
