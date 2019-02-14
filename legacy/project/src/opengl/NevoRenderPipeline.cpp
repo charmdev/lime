@@ -1,355 +1,205 @@
 #include "NevoRenderPipeline.h"
 
-#include <Surface.h>
-#include <iostream>
 #include "OGL.h"
+#include <Surface.h>
+
+#include "NevoTextureBinder.h"
+#include "NevoShaders.h"
 
 using namespace nme;
 
 namespace nevo
 {
 
+static TextureBinder *gTextureBinder = 0;
+static DefaultShader *gDefaultShader = 0;
 static float gMatrixIdentity2x2[4] = {1.0f, 0.0f, 0.0f, 1.0f};
-static int gTileIndices[6] = {0, 1, 2, 2, 3, 0};
 
-static void mult(float x, float y, float *m, float tx, float ty, float &_x, float &_y)
+static void mult(float x, float y, float *m, float tx, float ty, float *_x, float *_y)
 {
-    _x = x * m[0] + y * m[1] + tx;
-    _y = x * m[2] + y * m[3] + ty;
+    *_x = x * m[0] + y * m[1] + tx;
+    *_y = x * m[2] + y * m[3] + ty;
 }
 
-void Job::tex(nme::Surface *surface)
+//Job
+Job::Job()
+{
+    mSurface = 0;
+    clear();
+}
+
+Job::~Job()
+{
+    clear();
+}
+
+void Job::mtl(nme::Surface *surface, unsigned int color, int blendMode)
 {
     mSurface = surface;
-    if (mSurface) mSurface->IncRef();
-    mPremultAlpha = mSurface ? (mSurface->GetFlags() & nme::surfUsePremultipliedAlpha) : false;
-    mTexColor = mSurface ? mSurface->getTextureId() : 1.0f;
-    mTexAlpha = mSurface ? mSurface->getAlphaTextureId() : 1.0f;
-    mTexW = (float)(mSurface ? mSurface->getTextureWidth() : 1.0f);
-    mTexH = (float)(mSurface ? mSurface->getTextureHeight() : 1.0f);
-    mTexPixW = (float)(mSurface ? mSurface->Width() : 1.0f);
-    mTexPixH = (float)(mSurface ? mSurface->Height() : 1.0f);
+    if (mSurface)
+    {
+        mSurface->IncRef();
+        mTexColor = mSurface->getTextureId();
+        mTexAlpha = mSurface->getAlphaTextureId();
+        mTexW = mSurface->getTextureWidth();
+        mTexH = mSurface->getTextureHeight();
+        mTexPixW = mSurface->Width();
+        mTexPixH = mSurface->Height();
+        if (mSurface->GetFlags() & surfUsePremultipliedAlpha)
+            setPremultAlpha();
+    }
+    mBGRA = color;
+
+    if (blendMode == nme::bmNormal)
+        setBlendModeNormal();
+    else if (blendMode == nme::bmAdd)
+        setBlendModeAdd();
+    else
+        setBlendModeNone();
 }
 
-void Job::rect(float x, float y, float width, float height, int bgra, int blendMode)
+void Job::rect(float x, float y, float width, float height)
 {
-    mXY_n = 8;
-    mXY = (float*)malloc(mXY_n * sizeof(float));
-    mUV_n = 8;
-    mUV = (float*)malloc(mUV_n * sizeof(float));
-    mInd_n = 6;
-    mInd = gTileIndices;
-
-    mXY[0] = x;
-    mXY[1] = y;
-    mXY[2] = x + width;
-    mXY[3] = y;
-    mXY[4] = x + width;
-    mXY[5] = y + height;
-    mXY[6] = x;
-    mXY[7] = y + height;
+    mQ_XY[0].x = x;
+    mQ_XY[0].y = y;
+    mQ_XY[1].x = x + width;
+    mQ_XY[1].y = y;
+    mQ_XY[2].x = x + width;
+    mQ_XY[2].y = y + height;
+    mQ_XY[3].x = x;
+    mQ_XY[3].y = y + height;
 
     if (mSurface)
     {
-        mUV[0] = 0.0f;
-        mUV[1] = 0.0f;
-        mUV[2] = 1.0f;
-        mUV[3] = 0.0f;
-        mUV[4] = 1.0f;
-        mUV[5] = 1.0f;
-        mUV[6] = 0.0f;
-        mUV[7] = 1.0f;
+        mQ_UV[0].u = x / (float)mTexW;
+        mQ_UV[0].v = y / (float)mTexH;
+        mQ_UV[1].u = (x + width) / (float)mTexW;
+        mQ_UV[1].v = y / (float)mTexH;
+        mQ_UV[2].u = (x + width) / (float)mTexW;
+        mQ_UV[2].v = (y + height) / (float)mTexH;
+        mQ_UV[3].u = x / (float)mTexW;
+        mQ_UV[3].v = (y + height) / (float)mTexH;
     }
 
-    mType = Job::Type::RECT;
-    mBlendMode = toBlendMode(blendMode);
+    setTypeRect();
 }
 
-void Job::tile(float x, float y, const nme::Rect &inTileRect, float *inTrans, int bgra, int blendMode)
+void Job::tile(float x, float y, int rectX, int rectY, int rectW, int rectH, float *inTrans)
 {
-    mXY_n = 8;
-    mXY = (float*)malloc(mXY_n * sizeof(float));
-    mUV_n = 8;
-    mUV = (float*)malloc(mUV_n * sizeof(float));
-    mInd_n = 6;
-    mInd = gTileIndices;
-
-    mult(0, 0, inTrans ? inTrans : gMatrixIdentity2x2, x, y, mXY[0], mXY[1]);
-    mult(inTileRect.w, 0, inTrans ? inTrans : gMatrixIdentity2x2, x, y, mXY[2], mXY[3]);
-    mult(inTileRect.w, inTileRect.h, inTrans ? inTrans : gMatrixIdentity2x2, x, y, mXY[4], mXY[5]);
-    mult(0, inTileRect.h, inTrans ? inTrans : gMatrixIdentity2x2, x, y, mXY[6], mXY[7]);
+    mult(0, 0, inTrans ? inTrans : gMatrixIdentity2x2, x, y, &mQ_XY[0].x, &mQ_XY[0].y);
+    mult(rectW, 0, inTrans ? inTrans : gMatrixIdentity2x2, x, y, &mQ_XY[1].x, &mQ_XY[1].y);
+    mult(rectW, rectH, inTrans ? inTrans : gMatrixIdentity2x2, x, y, &mQ_XY[2].x, &mQ_XY[2].y);
+    mult(0, rectH, inTrans ? inTrans : gMatrixIdentity2x2, x, y, &mQ_XY[3].x, &mQ_XY[3].y);
 
     if (mSurface)
     {
-        mUV[0] = inTileRect.x / mTexW;
-        mUV[1] = inTileRect.y / mTexH;
-        mUV[2] = (inTileRect.x + inTileRect.w) / mTexW;
-        mUV[3] = inTileRect.y / mTexH;
-        mUV[4] = (inTileRect.x + inTileRect.w) / mTexW;
-        mUV[5] = (inTileRect.y + inTileRect.h) / mTexH;
-        mUV[6] = inTileRect.x / mTexW;
-        mUV[7] = (inTileRect.y + inTileRect.h) / mTexH;
+        mQ_UV[0].u = rectX / (float)mTexW;
+        mQ_UV[0].v = rectY / (float)mTexH;
+        mQ_UV[1].u = (rectX + rectW) / (float)mTexW;
+        mQ_UV[1].v = rectY / (float)mTexH;
+        mQ_UV[2].u = (rectX + rectW) / (float)mTexW;
+        mQ_UV[2].v = (rectY + rectH) / (float)mTexH;
+        mQ_UV[3].u = rectX / (float)mTexW;
+        mQ_UV[3].v = (rectY + rectH) / (float)mTexH;
     }
 
-    mType = Job::Type::TILE;
-    mBlendMode = toBlendMode(blendMode);
+    setTypeTile();
 }
 
-void Job::triangles(int inXYs_n, double *inXYs,
-    int inIndixes_n, int *inIndixes, int inUVT_n, double *inUVT,
-    int inColours_n, int *inColours, int bgra, int blendMode)
+void Job::triangles(int inXYs_n, float *inXYs,
+    int inIndixes_n, int *inIndixes, int inUVT_n, float *inUVT,
+    int inColours_n, int *inColours)
 {
-    mXY_n = inXYs_n;
-    mXY = (float*)malloc(mXY_n * sizeof(float));
-    mUV_n = inUVT_n;
-    mUV = (float*)malloc(mUV_n * sizeof(float));
-    mInd_n = inIndixes_n;
-    mInd = (int*)malloc(mInd_n * sizeof(int));;
+    mT_XY = inXYs;
+    mT_UV = inUVT;
+    mT_C = inColours;
+    mT_I = inIndixes;
+    mT_Vn = inXYs_n / 2;
+    mT_In = inIndixes_n;
 
-    //memcpy(mXY, inXYs, mXY_n * sizeof(float));
-    //memcpy(mUV, inUVT, mUV_n * sizeof(float));
-    for (int i = 0; i < mXY_n; ++i)
-        mXY[i] = (float)inXYs[i];
-    for (int i = 0; i < mUV_n; ++i)
-        mUV[i] = (float)inUVT[i];
-    memcpy(mInd, inIndixes, mInd_n * sizeof(int));
-
-    mType = Job::Type::TRIANGLES;
-    mBlendMode = toBlendMode(blendMode);
+    setTypeTriangles();
 }
 
 bool Job::hitTest(float x, float y)
 {
     static float a1, a2, a3, x1, x2, x3, y1, y2, y3;
-    for (int i = 0; i < mInd_n; ++i)
-    {
-        if (((i + 1) % 3) == 0)
-        {
-            x1 = mXY[mInd[i - 2] * 2]; y1 = mXY[mInd[i - 2] * 2 + 1];
-            x2 = mXY[mInd[i - 1] * 2]; y2 = mXY[mInd[i - 1] * 2 + 1];
-            x3 = mXY[mInd[i] * 2]; y3 = mXY[mInd[i] * 2 + 1];
-            a1 = (x1 - x) * (y2 - y1) - (x2 - x1) * (y1 - y);
-            a2 = (x2 - x) * (y3 - y2) - (x3 - x2) * (y2 - y);
-            a3 = (x3 - x) * (y1 - y3) - (x1 - x3) * (y3 - y);
-            if (((a1 >= 0) && (a2 >= 0) && (a3 >= 0)) || ((a1 <= 0) && (a2 <= 0) && (a3 <= 0)))
-                return true;
-        }
-    }
 
-    return false;
+    x1 = mQ_XY[0].x; x2 = mQ_XY[1].x; x3 = mQ_XY[2].x;
+    y1 = mQ_XY[0].y; y2 = mQ_XY[1].y; y3 = mQ_XY[2].y;
+    a1 = (x1 - x) * (y2 - y1) - (x2 - x1) * (y1 - y);
+    a2 = (x2 - x) * (y3 - y2) - (x3 - x2) * (y2 - y);
+    a3 = (x3 - x) * (y1 - y3) - (x1 - x3) * (y3 - y);
+    if (((a1 >= 0) && (a2 >= 0) && (a3 >= 0)) || ((a1 <= 0) && (a2 <= 0) && (a3 <= 0)))
+        return true;
+
+    x1 = mQ_XY[2].x; x2 = mQ_XY[3].x; x3 = mQ_XY[0].x;
+    y1 = mQ_XY[2].y; y2 = mQ_XY[3].y; y3 = mQ_XY[0].y;
+    a1 = (x1 - x) * (y2 - y1) - (x2 - x1) * (y1 - y);
+    a2 = (x2 - x) * (y3 - y2) - (x3 - x2) * (y2 - y);
+    a3 = (x3 - x) * (y1 - y3) - (x1 - x3) * (y3 - y);
+    return (((a1 >= 0) && (a2 >= 0) && (a3 >= 0)) || ((a1 <= 0) && (a2 <= 0) && (a3 <= 0)));
 }
 
-void Job::free_mem()
+void Job::clear()
 {
-    if (mXY && mXY_n) free(mXY);
-    if (mUV && mUV_n) free(mUV);
-    if (mInd && mInd_n && mInd != gTileIndices) free(mInd);
-    mXY = 0; mUV = 0; mInd = 0;
-    mXY_n = mUV_n = mInd_n = 0;
+    if (mSurface) mSurface->DecRef();
+    mSurface = 0;
+    mTexColor = mTexAlpha = 0;
+    mTexW = mTexH = 0;
+    mTexPixW = mTexPixH = 0;
+    mBGRA = 0x0;
+    mFlags = 0x0;
+    mT_XY = 0;
+    mT_UV = 0;
+    mT_C = 0;
+    mT_I = 0;
+    mT_Vn = 0;
+    mT_In = 0;
 }
 
-Job::BlendMode Job::toBlendMode(int blendMode)
+//JobsPool
+JobsPool::JobsPool()
 {
-    switch (blendMode)
-    {
-        case Job::BlendMode::NONE:
-            return Job::BlendMode::NONE;
-        case Job::BlendMode::NORMAL:
-            return Job::BlendMode::NORMAL;
-        case Job::BlendMode::ADD:
-            return Job::BlendMode::ADD;
-        default:
-            return Job::BlendMode::NORMAL;
-    }  
+
 }
 
-class GPUProgram
+JobsPool::~JobsPool()
 {
-public:
-    GPUProgram()
-    {
-        mProg = 0;
-        mVertSrc = 0;
-        mFragSrc = 0;
-    }
+    for (int i = 0; i < mAllocJobs.size(); ++i)
+        delete mAllocJobs[i];
+}
 
-    ~GPUProgram()
-    {
-        glDeleteProgram(mProg);
-    }
-
-    void bind()
-    {
-        glUseProgram(mProg);
-    }
-
-    void unbind()
-    {
-         glUseProgram(0);
-    }
-
-    void setUniform1f(GLuint loc, GLfloat v)
-    {
-        glUniform1f(loc, v);
-    }
-
-    void setUniform2f(GLuint loc, GLfloat v0, GLfloat v1)
-    {
-        glUniform2f(loc, v0, v1);
-    }
-
-    void setUniform3f(GLuint loc, GLfloat v0, GLfloat v1, GLfloat v2)
-    {
-        glUniform3f(loc, v0, v1, v2);
-    }
-
-    void setUniform4f(GLuint loc, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3)
-    {
-        glUniform4f(loc, v0, v1, v2, v3);
-    }
-
-    void setUniform1i(GLuint loc, GLfloat v)
-    {
-        glUniform1i(loc, v);
-    }
-
-    void setUniform1iv(GLuint loc, GLsizei count, const GLint* v)
-    {
-        glUniform1iv(loc, count, v);
-    }
-
-    void setMatrix4x4fv(GLuint loc, const GLfloat *v)
-    {
-        glUniformMatrix4fv(loc, 1, 0, v);
-    }
-
-protected:
-    char log[512];
-    const char *mVertSrc;
-    const char *mFragSrc;
-    GLuint mProg;
-
-    void createProgram()
-    {
-        GLint success;
-        GLuint vert = glCreateShader(GL_VERTEX_SHADER);
-        glShaderSource(vert, 1, &mVertSrc, NULL);
-        glCompileShader(vert);
-        glGetShaderiv(vert, GL_COMPILE_STATUS, &success);
-        if(!success)
-        {
-            glGetShaderInfoLog(vert, 512, NULL, log);
-            std::cout << "Vertex Compilation Error: " << log << std::endl;
-            return;
-        }
-
-        GLuint frag = glCreateShader(GL_FRAGMENT_SHADER);
-        glShaderSource(frag, 1, &mFragSrc, NULL);
-        glCompileShader(frag);
-        glGetShaderiv(frag, GL_COMPILE_STATUS, &success);
-        if(!success)
-        {
-            glGetShaderInfoLog(frag, 512, NULL, log);
-            std::cout << "Fragment Compilation Error: " << log << std::endl;
-            return;
-        }
-
-        mProg = glCreateProgram();
-        glAttachShader(mProg, vert);
-        glAttachShader(mProg, frag);
-        glLinkProgram(mProg);
-        glGetProgramiv(mProg, GL_LINK_STATUS, &success);
-        if(!success)
-        {
-            glGetProgramInfoLog(mProg, 512, NULL, log);
-            std::cout << "Linking Error: " << log << std::endl;
-            return;
-        }
-
-        glDeleteShader(vert);
-        glDeleteShader(frag);
-    }
-
-    GLuint getUniformLoc(const char *uniformName)
-    {
-        return glGetUniformLocation(mProg, uniformName);
-    }
-
-    GLuint getAttribLoc(const char *attribName)
-    {
-        return glGetAttribLocation(mProg, attribName);
-    }
-};
-
-class NevoRenderPipeline::DefaultShader : public GPUProgram
+Job* JobsPool::get()
 {
-public:
-    DefaultShader()
+    if (mFreeJobs.size() > 0)
     {
-        //precision mediump float;
-        mVertSrc = "                                                    \
-            uniform mat4 u_m;                                           \
-            uniform vec2 u_ts;                                          \
-            uniform vec4 u_c;                                           \
-                                                                        \
-            attribute vec2 a_xy;                                        \
-            attribute vec2 a_uv;                                        \
-                                                                        \
-            varying vec2 v_uv;                                          \
-            varying vec4 v_c;                                           \
-                                                                        \
-            void main()                                                 \
-            {                                                           \
-                v_uv = a_uv * u_ts;                                     \
-                v_c = u_c;                                              \
-                gl_Position = vec4(a_xy, 0.0, 1.0) * u_m;               \
-            }                                                           \
-        ";
-
-        mFragSrc = "                                                    \
-            uniform sampler2D u_t[8];                                   \
-                                                                        \
-            varying vec2 v_uv;                                          \
-            varying vec4 v_c;                                           \
-                                                                        \
-            void main()                                                 \
-            {                                                           \
-                vec4 texel = texture2D(u_t[0], v_uv);                   \
-                gl_FragColor = texel * v_c;                             \
-            }                                                           \
-        ";
-
-        createProgram();
-
-        mA_XY = getAttribLoc("a_xy");
-        mA_UV = getAttribLoc("a_uv");
-        mU_M = getUniformLoc("u_m");
-        mU_T = getUniformLoc("u_t");
-        mU_TS = getUniformLoc("u_ts");
-        mU_C = getUniformLoc("u_c");
+        Job *job = mFreeJobs.last();
+        mFreeJobs.dec();
+        return job;
     }
+    return mAllocJobs.inc() = new Job();
+}
 
-    GLuint mA_XY;
-    GLuint mA_UV;
-    GLuint mU_M;
-    GLuint mU_T;
-    GLuint mU_TS;
-    GLuint mU_C;
-private:
-
-};
+void JobsPool::refund(Job *job)
+{
+    job->clear();
+    mFreeJobs.inc() = job;
+}
 
 //NevoRenderPipeline
 NevoRenderPipeline::NevoRenderPipeline()
 {
-    mDefaultShader = 0;
     mJobs = 0;
-    mChTex.resize(8);
-    for (int i = 0; i < mChTex.size(); ++i) mChTex[i] = -1;
-    mTexCh.resize(1024);
-    for (int i = 0; i < mTexCh.size(); ++i) mTexCh[i] = -1;
-    mChUVal.resize(8);
-    for (int i = 0; i < mChUVal.size(); ++i) mChUVal[i] = i;
+
+    mI.reserve(cMaxIndex);
+    mXY.reserve(cMaxIndex * 2);
+    mUV.reserve(cMaxIndex * 2);
+    mC.reserve(cMaxIndex);
+
+    mXYvbo = 0;
+    mUVvbo = 0;
+    mCvbo = 0;
+    mIebo = 0;
 }
 
 NevoRenderPipeline::~NevoRenderPipeline()
@@ -359,40 +209,123 @@ NevoRenderPipeline::~NevoRenderPipeline()
 
 void NevoRenderPipeline::Init()
 {
-    mDefaultShader = new DefaultShader();
+    gTextureBinder = new TextureBinder();
+    gDefaultShader = new DefaultShader(gTextureBinder->numChannels());
+
+    glGenBuffers(1, &mXYvbo);
+    glBindBuffer(GL_ARRAY_BUFFER, mXYvbo);
+    glBufferData(GL_ARRAY_BUFFER, mXY.allocMemSize(), 0, GL_DYNAMIC_DRAW);
+
+    glGenBuffers(1, &mUVvbo);
+    glBindBuffer(GL_ARRAY_BUFFER, mUVvbo);
+    glBufferData(GL_ARRAY_BUFFER, mUV.allocMemSize(), 0, GL_DYNAMIC_DRAW);
+
+    glGenBuffers(1, &mCvbo);
+    glBindBuffer(GL_ARRAY_BUFFER, mCvbo);
+    glBufferData(GL_ARRAY_BUFFER, mC.allocMemSize(), 0, GL_DYNAMIC_DRAW);
+
+    glGenBuffers(1, &mIebo);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mIebo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, mI.allocMemSize(), 0, GL_DYNAMIC_DRAW);
 }
 
 void NevoRenderPipeline::Clear()
 {
-    if (mDefaultShader)
+    if (gDefaultShader)
     {
-        delete mDefaultShader;
+        delete gDefaultShader;
+        gDefaultShader = 0;
+    }
+
+    if (gTextureBinder)
+    {
+        delete gTextureBinder;
+        gTextureBinder = 0;
+    }
+
+    if (mXYvbo)
+    {
+        glDeleteBuffers(1, &mXYvbo);
+        mXYvbo = 0;
+    }
+
+    if (mUVvbo)
+    {
+        glDeleteBuffers(1, &mUVvbo);
+        mUVvbo = 0;
+    }
+
+    if (mCvbo)
+    {
+        glDeleteBuffers(1, &mCvbo);
+        mCvbo = 0;
+    }
+
+    if (mIebo)
+    {
+        glDeleteBuffers(1, &mIebo);
+        mIebo = 0;
     }
 }
 
-void NevoRenderPipeline::setJobs(Vec<Job> *jobs)
+void NevoRenderPipeline::setJobs(Vec<Job*> *jobs)
 {
     mJobs = jobs;
 }
 
 void NevoRenderPipeline::setNodeParams(float *inTrans4x4, float r, float g, float b, float a)
 {
-    mDefaultShader->setMatrix4x4fv(mDefaultShader->mU_M, inTrans4x4);
-    mDefaultShader->setUniform4f(mDefaultShader->mU_C, r, g, b, a);
+    gDefaultShader->setMatrix4x4fv(gDefaultShader->mU_M, inTrans4x4);
+    gDefaultShader->setUniform4f(gDefaultShader->mU_C, r, g, b, a);
 
     for (int i = 0; i < mJobs->size(); ++i)
     {
-        Job &job = (*mJobs)[i];
+        Job &job = *(*mJobs)[i];
+        
         if (job.mSurface)
         {
+            glActiveTexture(GL_TEXTURE0);
+            glEnable(GL_TEXTURE_2D);
             glBindTexture(GL_TEXTURE_2D, job.mTexColor);
-            if (job.mType == Job::Type::TRIANGLES)
-                mDefaultShader->setUniform2f(mDefaultShader->mU_TS, job.mTexPixW / job.mTexW, job.mTexPixH / job.mTexH);
-            else
-                mDefaultShader->setUniform2f(mDefaultShader->mU_TS, 1.0f, 1.0f);
-            glVertexAttribPointer(mDefaultShader->mA_XY, 2, GL_FLOAT, GL_FALSE, 0, job.mXY);
-            glVertexAttribPointer(mDefaultShader->mA_UV, 2, GL_FLOAT, GL_FALSE, 0, job.mUV);
-            glDrawElements(GL_TRIANGLES, job.mInd_n, GL_UNSIGNED_INT, job.mInd);
+        }
+
+        if (job.isTypeTriangles())
+        {
+            gDefaultShader->setUniform2f(gDefaultShader->mU_TS, job.mTexPixW / (float)job.mTexW, job.mTexPixH / (float)job.mTexH);
+        }
+        else 
+        {
+            gDefaultShader->setUniform2f(gDefaultShader->mU_TS, 1.0f, 1.0f);
+
+            // mXY.resize(8);
+            // mXY[0] = job.mQ_XY[0].x; mXY[1] = job.mQ_XY[0].y;
+            // mXY[2] = job.mQ_XY[1].x; mXY[3] = job.mQ_XY[1].y;
+            // mXY[4] = job.mQ_XY[2].x; mXY[5] = job.mQ_XY[2].y;
+            // mXY[6] = job.mQ_XY[3].x; mXY[7] = job.mQ_XY[3].y;
+
+            // mUV.resize(8);
+            // mUV[0] = job.mQ_UV[0].u; mUV[1] = job.mQ_UV[0].v;
+            // mUV[2] = job.mQ_UV[1].u; mUV[3] = job.mQ_UV[1].v;
+            // mUV[4] = job.mQ_UV[2].u; mUV[5] = job.mQ_UV[2].v;
+            // mUV[6] = job.mQ_UV[3].u; mUV[7] = job.mQ_UV[3].v;
+
+            mI.resize(6);
+            mI[0] = 0; mI[1] = 1; mI[2] = 2;
+            mI[3] = 2; mI[4] = 3; mI[5] = 0;
+
+            glBindBuffer(GL_ARRAY_BUFFER, mXYvbo);
+            glBufferSubData(GL_ARRAY_BUFFER, 0, 32, job.mQ_XY);
+            glEnableVertexAttribArray(gDefaultShader->mA_XY);
+            glVertexAttribPointer(gDefaultShader->mA_XY, 2, GL_FLOAT, GL_FALSE, 8, 0);
+
+            glBindBuffer(GL_ARRAY_BUFFER, mUVvbo);
+            glBufferSubData(GL_ARRAY_BUFFER, 0, 32, job.mQ_UV);
+            glEnableVertexAttribArray(gDefaultShader->mA_UV);
+            glVertexAttribPointer(gDefaultShader->mA_UV, 2, GL_FLOAT, GL_FALSE, 8, 0);
+
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mIebo);
+            glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, mI.sizeMemSize(), &mI[0]);
+            glDrawElements(GL_TRIANGLES, mI.size(), GL_UNSIGNED_SHORT, 0);
         }
     }
 }
@@ -401,23 +334,23 @@ void NevoRenderPipeline::begin()
 {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    mDefaultShader->bind();
-    mDefaultShader->setUniform1iv(mDefaultShader->mU_T, mChUVal.size(), &mChUVal[0]);
-    glEnableVertexAttribArray(mDefaultShader->mA_XY);
-    glEnableVertexAttribArray(mDefaultShader->mA_UV);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-    glActiveTexture(GL_TEXTURE0);
-    glEnable(GL_TEXTURE_2D);
+
+    /*glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    glBlendEquation(GL_FUNC_ADD);*/
+
+    gDefaultShader->bind();
+    gDefaultShader->setUniform1iv(gDefaultShader->mU_T, gDefaultShader->mU_T_Val.size(), &gDefaultShader->mU_T_Val[0]);
 }
 
 void NevoRenderPipeline::end()
 {
-    glDisableVertexAttribArray(mDefaultShader->mA_XY);
-    glDisableVertexAttribArray(mDefaultShader->mA_UV);
-    mDefaultShader->unbind();
+    glDisableVertexAttribArray(gDefaultShader->mA_XY);
+    glDisableVertexAttribArray(gDefaultShader->mA_UV);
+    gDefaultShader->unbind();
 }
 
+JobsPool gNevoJobsPool;
 NevoRenderPipeline gNevoRender;
 
 }

@@ -7,7 +7,9 @@
 #include <Scale9.h>
 #include <nme/Pixel.h>
 
+#ifdef NEVO_RENDER
 #include "../src/opengl/NevoRenderPipeline.h"
+#endif
 
 typedef unsigned int uint32;
 typedef unsigned char uint8;
@@ -622,8 +624,8 @@ public:
             const QuickVec<float> &inUVT, int inCull, const QuickVec<int> &inColours,
             int blendMode );
 #ifdef NEVO_RENDER
-   void drawTrianglesNevo(int inXYs_n, double *inXYs, int inIndixes_n, int *inIndixes,
-            int inUVT_n, double *inUVT, int inColours_n, int *inColours,
+   void drawTrianglesNevo(int inXYs_n, float *inXYs, int inIndixes_n, int *inIndixes,
+            int inUVT_n, float *inUVT, int inColours_n, int *inColours,
             int inCull, int blendMode);
 #endif
 
@@ -667,8 +669,8 @@ private:
    Surface                   *mTileTexture;
    int                       mTileBlendMode;
    Surface                   *mFillTexture;
-   int                       mFillBGRA;
-   nevo::Vec<nevo::Job>      mNevoJobs;
+   unsigned int              mFillBGRA;
+   nevo::Vec<nevo::Job*>     mNevoJobs;
 #endif
 
 private:

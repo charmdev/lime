@@ -16,7 +16,9 @@
 #include "OpenGLS3D.h"
 #endif
 
+#ifdef NEVO_RENDER
 #include "NevoRenderPipeline.h"
+#endif
 
 int sgDrawCount = 0;
 int sgDrawBitmap = 0;
