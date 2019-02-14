@@ -158,6 +158,7 @@ DefaultShader::DefaultShader(int numTexChannels)
     uniform sampler2D u_t[";
     mFragSrc += oss.str();
     mFragSrc += "];                                                 \
+        uniform vec4i u_mtl;                                        \
                                                                     \
         varying vec2 v_uv;                                          \
         varying vec4 v_c;                                           \
@@ -177,6 +178,7 @@ DefaultShader::DefaultShader(int numTexChannels)
     mU_T = getUniformLoc("u_t");
     mU_TS = getUniformLoc("u_ts");
     mU_C = getUniformLoc("u_c");
+    mU_MTL = getUniformLoc("u_mtl");
 }
 
 }

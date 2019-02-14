@@ -111,16 +111,12 @@ public:
 private:
     Vec<Job*> *mJobs;
 
-    static const int cMaxIndex = 65535;
-    Vec<float> mXY;
-    Vec<float> mUV;
-    Vec<int> mC;
-    Vec<unsigned short int> mI;
-
+    static const int cMaxVerts = 65535;
     unsigned int mXYvbo;
     unsigned int mUVvbo;
     unsigned int mCvbo;
     unsigned int mIebo;
+    unsigned int mQIebo;
 };
 
 extern JobsPool gNevoJobsPool;

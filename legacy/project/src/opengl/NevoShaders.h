@@ -48,6 +48,7 @@ public:
     GLuint mU_T;
     GLuint mU_TS;
     GLuint mU_C;
+    GLuint mU_MTL;
 
     Vec<int> mU_T_Val;
 

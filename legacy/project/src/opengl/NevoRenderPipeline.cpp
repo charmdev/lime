@@ -191,15 +191,11 @@ NevoRenderPipeline::NevoRenderPipeline()
 {
     mJobs = 0;
 
-    mI.reserve(cMaxIndex);
-    mXY.reserve(cMaxIndex * 2);
-    mUV.reserve(cMaxIndex * 2);
-    mC.reserve(cMaxIndex);
-
     mXYvbo = 0;
     mUVvbo = 0;
     mCvbo = 0;
     mIebo = 0;
+    mQIebo = 0;
 }
 
 NevoRenderPipeline::~NevoRenderPipeline()
@@ -214,19 +210,28 @@ void NevoRenderPipeline::Init()
 
     glGenBuffers(1, &mXYvbo);
     glBindBuffer(GL_ARRAY_BUFFER, mXYvbo);
-    glBufferData(GL_ARRAY_BUFFER, mXY.allocMemSize(), 0, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, cMaxVerts * sizeof(float) * 2, 0, GL_DYNAMIC_DRAW);
 
     glGenBuffers(1, &mUVvbo);
     glBindBuffer(GL_ARRAY_BUFFER, mUVvbo);
-    glBufferData(GL_ARRAY_BUFFER, mUV.allocMemSize(), 0, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, cMaxVerts * sizeof(float) * 2, 0, GL_DYNAMIC_DRAW);
 
     glGenBuffers(1, &mCvbo);
     glBindBuffer(GL_ARRAY_BUFFER, mCvbo);
-    glBufferData(GL_ARRAY_BUFFER, mC.allocMemSize(), 0, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, cMaxVerts * sizeof(int), 0, GL_DYNAMIC_DRAW);
 
     glGenBuffers(1, &mIebo);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mIebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, mI.allocMemSize(), 0, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, cMaxVerts * sizeof(unsigned short int), 0, GL_DYNAMIC_DRAW);
+
+    glGenBuffers(1, &mQIebo);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mQIebo);
+    unsigned short int qIndex[cMaxVerts];
+    qIndex[0] = 0; qIndex[1] = 1; qIndex[2] = 2;
+    qIndex[3] = 2; qIndex[4] = 3; qIndex[5] = 0;
+    for (int i = 6; i < cMaxVerts; ++i)
+        qIndex[i] = qIndex[i - 6] + 4;
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, cMaxVerts * sizeof(unsigned short int), qIndex, GL_STATIC_DRAW);
 }
 
 void NevoRenderPipeline::Clear()
@@ -266,6 +271,12 @@ void NevoRenderPipeline::Clear()
         glDeleteBuffers(1, &mIebo);
         mIebo = 0;
     }
+
+    if (mQIebo)
+    {
+        glDeleteBuffers(1, &mQIebo);
+        mQIebo = 0;
+    }
 }
 
 void NevoRenderPipeline::setJobs(Vec<Job*> *jobs)
@@ -297,22 +308,6 @@ void NevoRenderPipeline::setNodeParams(float *inTrans4x4, float r, float g, floa
         {
             gDefaultShader->setUniform2f(gDefaultShader->mU_TS, 1.0f, 1.0f);
 
-            // mXY.resize(8);
-            // mXY[0] = job.mQ_XY[0].x; mXY[1] = job.mQ_XY[0].y;
-            // mXY[2] = job.mQ_XY[1].x; mXY[3] = job.mQ_XY[1].y;
-            // mXY[4] = job.mQ_XY[2].x; mXY[5] = job.mQ_XY[2].y;
-            // mXY[6] = job.mQ_XY[3].x; mXY[7] = job.mQ_XY[3].y;
-
-            // mUV.resize(8);
-            // mUV[0] = job.mQ_UV[0].u; mUV[1] = job.mQ_UV[0].v;
-            // mUV[2] = job.mQ_UV[1].u; mUV[3] = job.mQ_UV[1].v;
-            // mUV[4] = job.mQ_UV[2].u; mUV[5] = job.mQ_UV[2].v;
-            // mUV[6] = job.mQ_UV[3].u; mUV[7] = job.mQ_UV[3].v;
-
-            mI.resize(6);
-            mI[0] = 0; mI[1] = 1; mI[2] = 2;
-            mI[3] = 2; mI[4] = 3; mI[5] = 0;
-
             glBindBuffer(GL_ARRAY_BUFFER, mXYvbo);
             glBufferSubData(GL_ARRAY_BUFFER, 0, 32, job.mQ_XY);
             glEnableVertexAttribArray(gDefaultShader->mA_XY);
@@ -323,9 +318,8 @@ void NevoRenderPipeline::setNodeParams(float *inTrans4x4, float r, float g, floa
             glEnableVertexAttribArray(gDefaultShader->mA_UV);
             glVertexAttribPointer(gDefaultShader->mA_UV, 2, GL_FLOAT, GL_FALSE, 8, 0);
 
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mIebo);
-            glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, mI.sizeMemSize(), &mI[0]);
-            glDrawElements(GL_TRIANGLES, mI.size(), GL_UNSIGNED_SHORT, 0);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mQIebo);
+            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);
         }
     }
 }
