@@ -67,6 +67,11 @@ int Surface::getTextureHeight()
    return tex -> getTextureHeight();
 }
 
+bool Surface::alphaIsPremultiply()
+{
+   return mFlags & surfUsePremultipliedAlpha;
+}
+
 // --- SimpleSurface -------------------------------------------------------
 
 SimpleSurface::SimpleSurface(int inWidth,int inHeight,PixelFormat inPixelFormat,int inByteAlign,int inGPUFormat)

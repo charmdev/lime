@@ -11,10 +11,10 @@ template <typename T>
 class Vec
 {
 public:
-    Vec()
+    Vec(int alloc = 16)
     {
         mSize = 0;
-        mAlloc = 16;
+        mAlloc = alloc;
         mPtr = (T*)malloc(mAlloc * sizeof(T));
     }
 

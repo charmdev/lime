@@ -624,7 +624,7 @@ public:
             const QuickVec<float> &inUVT, int inCull, const QuickVec<int> &inColours,
             int blendMode );
 #ifdef NEVO_RENDER
-   void drawTrianglesNevo(int inXYs_n, float *inXYs, int inIndixes_n, int *inIndixes,
+   void drawTrianglesNevo(int inXYs_n, float *inXYs, int inIndixes_n, short *inIndixes,
             int inUVT_n, float *inUVT, int inColours_n, int *inColours,
             int inCull, int blendMode);
 #endif
