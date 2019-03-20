@@ -18,7 +18,7 @@ static int sizePO2(int bytes, int *power)
     *power = gMinBufSizePower;
     while ((bytes > bytes_po2) && (bytes_po2 < gMaxBufSize))
     {
-        bytes_po2 *= 2;
+        bytes_po2 = bytes_po2 << 1;
         ++(*power);
     }
     return bytes_po2;

@@ -712,28 +712,14 @@ Extent2DF Graphics::GetSoftwareExtent(const Transform &inTransform, bool inInclu
    for (i = 0; i < mNevoJobs.size(); ++i)
    {
       job = mNevoJobs[i];
-      if (job->isTypeRect() || job->isTypeTile())
-      {
-         x = job->mQ_XY[0].x; y = job->mQ_XY[0].y;
-         result.Add(m->m00 * x + m->m01 * y + m->mtx, m->m10 * x + m->m11 * y + m->mty);
-         x = job->mQ_XY[1].x; y = job->mQ_XY[1].y;
-         result.Add(m->m00 * x + m->m01 * y + m->mtx, m->m10 * x + m->m11 * y + m->mty);
-         x = job->mQ_XY[2].x; y = job->mQ_XY[2].y;
-         result.Add(m->m00 * x + m->m01 * y + m->mtx, m->m10 * x + m->m11 * y + m->mty);
-         x = job->mQ_XY[3].x; y = job->mQ_XY[3].y;
-         result.Add(m->m00 * x + m->m01 * y + m->mtx, m->m10 * x + m->m11 * y + m->mty);
-      }
-      else if (job->isTypeTriangles())
-      {
-         x = job->mT_BBminX; y = job->mT_BBminY;
-         result.Add(m->m00 * x + m->m01 * y + m->mtx, m->m10 * x + m->m11 * y + m->mty);
-         x = job->mT_BBmaxX; y = job->mT_BBminY;
-         result.Add(m->m00 * x + m->m01 * y + m->mtx, m->m10 * x + m->m11 * y + m->mty);
-         x = job->mT_BBmaxX; y = job->mT_BBmaxY;
-         result.Add(m->m00 * x + m->m01 * y + m->mtx, m->m10 * x + m->m11 * y + m->mty);
-         x = job->mT_BBminX; y = job->mT_BBmaxY;
-         result.Add(m->m00 * x + m->m01 * y + m->mtx, m->m10 * x + m->m11 * y + m->mty);
-      }
+      x = job->mBBminX; y = job->mBBminY;
+      result.Add(m->m00 * x + m->m01 * y + m->mtx, m->m10 * x + m->m11 * y + m->mty);
+      x = job->mBBmaxX; y = job->mBBminY;
+      result.Add(m->m00 * x + m->m01 * y + m->mtx, m->m10 * x + m->m11 * y + m->mty);
+      x = job->mBBmaxX; y = job->mBBmaxY;
+      result.Add(m->m00 * x + m->m01 * y + m->mtx, m->m10 * x + m->m11 * y + m->mty);
+      x = job->mBBminX; y = job->mBBmaxY;
+      result.Add(m->m00 * x + m->m01 * y + m->mtx, m->m10 * x + m->m11 * y + m->mty);
    }
 
    return result;

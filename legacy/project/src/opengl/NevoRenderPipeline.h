@@ -69,7 +69,6 @@ public:
             VBO *mT_C;
             EBO *mT_I;
             int mT_In;
-            float mT_BBminX, mT_BBminY, mT_BBmaxX, mT_BBmaxY;
         };
         
         struct
@@ -78,6 +77,20 @@ public:
             struct { float u, v; } mQ_UV[4];
         };
     };
+
+    float mBBminX, mBBminY, mBBmaxX, mBBmaxY;
+    void initBB(float x, float y)
+    {
+        mBBminX = mBBmaxX = x;
+        mBBminY = mBBmaxY = y;
+    }
+    void calcBB(float x, float y)
+    {
+        if (x < mBBminX) mBBminX = x;
+        if (x > mBBmaxX) mBBmaxX = x;
+        if (y < mBBminY) mBBminY = y;
+        if (y > mBBmaxY) mBBmaxY = y;
+    }
 };
 
 class JobsPool

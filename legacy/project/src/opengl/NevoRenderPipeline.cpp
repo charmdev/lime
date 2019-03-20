@@ -71,12 +71,16 @@ void Job::rect(float x, float y, float width, float height)
 {
     mQ_XY[0].x = x;
     mQ_XY[0].y = y;
+    initBB(mQ_XY[0].x, mQ_XY[0].y);
     mQ_XY[1].x = x + width;
     mQ_XY[1].y = y;
+    calcBB(mQ_XY[1].x, mQ_XY[1].y);
     mQ_XY[2].x = x + width;
     mQ_XY[2].y = y + height;
+    calcBB(mQ_XY[2].x, mQ_XY[2].y);
     mQ_XY[3].x = x;
     mQ_XY[3].y = y + height;
+    calcBB(mQ_XY[3].x, mQ_XY[3].y);
 
     if (mSurface)
     {
@@ -97,9 +101,13 @@ void Job::tile(float x, float y, int rectX, int rectY, int rectW, int rectH, flo
 {
     float *m2x2 = inTrans ? inTrans : gMatrixIdentity2x2;
     mult(0.0f, 0.0f, m2x2, x, y, &mQ_XY[0].x, &mQ_XY[0].y);
+    initBB(mQ_XY[0].x, mQ_XY[0].y);
     mult(rectW, 0.0f, m2x2, x, y, &mQ_XY[1].x, &mQ_XY[1].y);
+    calcBB(mQ_XY[1].x, mQ_XY[1].y);
     mult(rectW, rectH, m2x2, x, y, &mQ_XY[2].x, &mQ_XY[2].y);
+    calcBB(mQ_XY[2].x, mQ_XY[2].y);
     mult(0.0f, rectH, m2x2, x, y, &mQ_XY[3].x, &mQ_XY[3].y);
+    calcBB(mQ_XY[3].x, mQ_XY[3].y);
 
     if (mSurface)
     {
@@ -121,23 +129,19 @@ void Job::triangles(int inXYs_n, float *inXYs,
     int inColours_n, int *inColours)
 {
     mT_XY = 0; mT_UV = 0; mT_C = 0; mT_I = 0; mT_In = 0;
-    mT_BBminX = mT_BBminY = mT_BBmaxX = mT_BBmaxY = 0.0f;
+    initBB(0.0f, 0.0f);
 
     if (inXYs)
     {
         mT_XY = gVBOPool->get(inXYs_n * sizeof(float));
         mT_XY->update(0, inXYs_n * sizeof(float), inXYs);
+        initBB(inXYs[0], inXYs[1]);
 
-        mT_BBminX = mT_BBmaxX = inXYs[0];
-        mT_BBminY = mT_BBmaxY = inXYs[1];
         for (int i = 0; i < inXYs_n; ++i)
         {
             if ((i + 1) % 2 == 0)
             {
-                if (inXYs[i - 1] < mT_BBminX) mT_BBminX = inXYs[i - 1];
-                if (inXYs[i - 1] > mT_BBmaxX) mT_BBmaxX = inXYs[i - 1];
-                if (inXYs[i] < mT_BBminY) mT_BBminY = inXYs[i];
-                if (inXYs[i] > mT_BBmaxY) mT_BBmaxY = inXYs[i];
+                calcBB(inXYs[i - 1], inXYs[i]);
             }
         }
     }
@@ -166,14 +170,7 @@ void Job::triangles(int inXYs_n, float *inXYs,
 
 bool Job::hitTest(float x, float y)
 {
-    if (isTypeTriangles())
-    {
-        return (mT_BBminX <= x) && (mT_BBminY <= y) && (mT_BBmaxX >= x) && (mT_BBmaxY >= y);
-    }
-
-    if (pointInTriangle(x, y, mQ_XY[0].x, mQ_XY[0].y, mQ_XY[1].x, mQ_XY[1].y, mQ_XY[2].x, mQ_XY[2].y))
-        return true;
-    return pointInTriangle(x, y, mQ_XY[2].x, mQ_XY[2].y, mQ_XY[3].x, mQ_XY[3].y, mQ_XY[0].x, mQ_XY[0].y);
+    return (mBBminX <= x) && (mBBminY <= y) && (mBBmaxX >= x) && (mBBmaxY >= y);
 }
 
 void Job::clear()
