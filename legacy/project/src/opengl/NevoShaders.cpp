@@ -2,6 +2,10 @@
 
 #include <iostream>
 
+#ifdef ANDROID
+#include <android/log.h>
+#endif
+
 using namespace nme;
 
 namespace nevo
@@ -93,6 +97,9 @@ void GPUProgram::createProgram(std::vector<std::string> attribs)
     {
         glGetShaderInfoLog(vert, 512, NULL, log);
         std::cout << "Vertex Compilation Error: " << log << std::endl;
+#ifdef ANDROID
+        __android_log_print(ANDROID_LOG_INFO, "Vertex Compilation Error: ", log);
+#endif
         return;
     }
 
@@ -105,6 +112,9 @@ void GPUProgram::createProgram(std::vector<std::string> attribs)
     {
         glGetShaderInfoLog(frag, 512, NULL, log);
         std::cout << "Fragment Compilation Error: " << log << std::endl;
+#ifdef ANDROID
+        __android_log_print(ANDROID_LOG_INFO, "Fragment Compilation Error: ", log);
+#endif
         return;
     }
 
@@ -123,6 +133,9 @@ void GPUProgram::createProgram(std::vector<std::string> attribs)
     {
         glGetProgramInfoLog(mProg, 512, NULL, log);
         std::cout << "Linking Error: " << log << std::endl;
+#ifdef ANDROID
+        __android_log_print(ANDROID_LOG_INFO, "Linking Error: ", log);
+#endif
         return;
     }
 
@@ -180,16 +193,16 @@ DefaultShader::DefaultShader()
         void main()                                                 \
         {                                                           \
             vec4 texel = vec4(1.0, 1.0, 1.0, 1.0);                  \
-            if (u_mtl[0])                                           \
+            if (u_mtl[0] != 0)                                      \
             {                                                       \
                 texel = texture2D(u_tC, v_uv);                      \
-                if (u_mtl[1])                                       \
-                    texel.a = texture2D(u_tA, v_uv).a;              \
-                if (u_mtl[2]) texel.rgb /= texel.a;                 \
+                if (u_mtl[1] != 0)                                  \
+                    texel.a = texture2D(u_tA, v_uv).r;              \
+                if (u_mtl[2] != 0) texel.rgb /= texel.a;            \
             }                                                       \
             texel *= v_c;                                           \
             texel.rgb *= texel.a;                                   \
-            if (u_mtl[3]) texel.a = 0.0;                            \
+            if (u_mtl[3] != 0) texel.a = 0.0;                       \
             gl_FragColor = texel;                                   \
         }                                                           \
     ";

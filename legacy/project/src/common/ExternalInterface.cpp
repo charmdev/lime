@@ -36,7 +36,6 @@
 #include <NmeStateVersion.h>
 #include <nme/NmeApi.h>
 //#include <hx/CFFIPrime.h>
-#include <hxcpp.h>
 
 
 #ifdef min
@@ -257,14 +256,6 @@ WString val2stdwstr(value inVal)
    int len=0;
    while(val[len]) len++;
    return WString(val,len);
-}
-
-short * val_array_short(hx::Object * arg1)
-{
-   Array_obj<short> *a = dynamic_cast< Array_obj<short> * >(arg1);
-   if (a==0)
-      return 0;
-   return (short *)a->GetBase();
 }
 
 template<typename T>
@@ -2749,7 +2740,7 @@ value nme_gfx_draw_triangles(value *arg, int args )
       if (!val_is_null(arg[aIndices]))
       {
          i_n = val_array_size(arg[aIndices]);
-         i = val_array_short((hx::Object*)(arg[aIndices]));
+         i = val_array_short(arg[aIndices]);
       }
 
       int uv_n = 0;

@@ -123,7 +123,7 @@ public:
 private:
     bool pushQuad(Job *job);
     void flushQuads();
-    Job *mPrevQuadJob;
+    Job *mPrevJob;
 
     Vec<Job*> *mJobs;
 

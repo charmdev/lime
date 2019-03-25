@@ -17,12 +17,23 @@ static VBOPool *gVBOPool = 0;
 static EBOPool *gEBOPool = 0;
 JobsPool *gNevoJobsPool = 0;
 NevoRenderPipeline gNevoRender;
-static float gMatrixIdentity2x2[4] = {1.0f, 0.0f, 0.0f, 1.0f};
+static float gMatrixIdentity2x2[4] = { 1.0f, 0.0f,
+                                       0.0f, 1.0f };
+static float gMatrixIdentity4x4[16] = { 1.0f, 0.0f, 0.0f, 0.0f,
+                                        0.0f, 1.0f, 0.0f, 0.0f,
+                                        0.0f, 0.0f, 1.0f, 0.0f,
+                                        0.0f, 0.0f, 0.0f, 1.0f };
 
 static void mult(float x, float y, float *m, float tx, float ty, float *_x, float *_y)
 {
     *_x = x * m[0] + y * m[2] + tx;
     *_y = x * m[1] + y * m[3] + ty;
+}
+
+static void mult(float x, float y, float m00, float m10, float m01, float m11, float tx, float ty, float *_x, float *_y)
+{
+    *_x = x * m00 + y * m01 + tx;
+    *_y = x * m10 + y * m11 + ty;
 }
 
 static bool pointInTriangle(float x, float y, float x1, float y1, float x2, float y2, float x3, float y3)
@@ -135,8 +146,8 @@ void Job::triangles(int inXYs_n, float *inXYs,
     {
         mT_XY = gVBOPool->get(inXYs_n * sizeof(float));
         mT_XY->update(0, inXYs_n * sizeof(float), inXYs);
-        initBB(inXYs[0], inXYs[1]);
 
+        initBB(inXYs[0], inXYs[1]);
         for (int i = 0; i < inXYs_n; ++i)
         {
             if ((i + 1) % 2 == 0)
@@ -222,7 +233,8 @@ void JobsPool::refund(Job *job)
 NevoRenderPipeline::NevoRenderPipeline()
 {
     mJobs = 0;
-    mPrevQuadJob = 0;
+    mI_n = 0;
+    mPrevJob = 0;
 }
 
 NevoRenderPipeline::~NevoRenderPipeline()
@@ -239,9 +251,9 @@ void NevoRenderPipeline::Init()
     gEBOPool = new EBOPool();
     gNevoJobsPool = new JobsPool();
 
-    mXYvbo = gVBOPool->get(cMaxVerts * sizeof(float) * 2);
-    mUVvbo = gVBOPool->get(cMaxVerts * sizeof(float) * 2);
-    mCvbo = gVBOPool->get(cMaxVerts * sizeof(int));
+    mXYvbo = gVBOPool->get(cMaxVerts * sizeof(float) * 2, true);
+    mUVvbo = gVBOPool->get(cMaxVerts * sizeof(float) * 2, true);
+    mCvbo = gVBOPool->get(cMaxVerts * sizeof(int), true);
     mQIebo = gEBOPool->get(cMaxVerts * sizeof(unsigned short), true);
     unsigned short qIndex[cMaxVerts];
     qIndex[0] = 0; qIndex[1] = 1; qIndex[2] = 2;
@@ -296,33 +308,44 @@ void NevoRenderPipeline::setNodeParams(float *inTrans4x4, float r, float g, floa
     for (int i = 0; i < mJobs->size(); ++i)
     {
         Job *job = (*mJobs)[i];
-        
-        bool mtlC = false;
-        bool mtlA = false;
-        bool mtlPremultA = false;
-        bool mtlBlendAdd = job->isBlendModeAdd();
-        if (job->mSurface)
+
+        if (mPrevJob ? !mPrevJob->cmpmtl(job) : true)
         {
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, job->mSurface->getTextureId());
-            mtlC = true;
-            if (job->mSurface->getAlphaTextureId())
+            flushQuads();
+
+            bool mtlC = false;
+            bool mtlA = false;
+            bool mtlPremultA = false;
+            bool mtlBlendAdd = job->isBlendModeAdd();
+            if (job->mSurface)
             {
-                glActiveTexture(GL_TEXTURE1);
-                glBindTexture(GL_TEXTURE_2D, job->mSurface->getAlphaTextureId());
-                mtlA = true;
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, job->mSurface->getTextureId());
+                mtlC = true;
+                if (job->mSurface->getAlphaTextureId())
+                {
+                    glActiveTexture(GL_TEXTURE1);
+                    glBindTexture(GL_TEXTURE_2D, job->mSurface->getAlphaTextureId());
+                    mtlA = true;
+                }
+                mtlPremultA = job->mSurface->alphaIsPremultiply();
             }
-            mtlPremultA = job->mSurface->alphaIsPremultiply();
+            gDefaultShader->setUniform4i(gDefaultShader->mU_MTL, mtlC, mtlA, mtlPremultA, mtlBlendAdd);
+
+            float aspectW = 1.0f;
+            float aspectH = 1.0f;
+            if (job->isTypeTriangles())
+            {
+                aspectW = job->mSurface ? job->mSurface->Width() / (float)job->mSurface->getTextureWidth() : 1.0f;
+                aspectH = job->mSurface ? job->mSurface->Height() / (float)job->mSurface->getTextureHeight() : 1.0f;  
+            }
+            gDefaultShader->setUniform2f(gDefaultShader->mU_TS, aspectW, aspectH);
         }
-        gDefaultShader->setUniform4i(gDefaultShader->mU_MTL, mtlC, mtlA, mtlPremultA, mtlBlendAdd);
 
         if (job->isTypeTriangles())
         {
             flushQuads();
 
-            float aspectW = job->mSurface ? job->mSurface->Width() / (float)job->mSurface->getTextureWidth() : 1.0f;
-            float aspectH = job->mSurface ? job->mSurface->Height() / (float)job->mSurface->getTextureHeight() : 1.0f;
-            gDefaultShader->setUniform2f(gDefaultShader->mU_TS, aspectW, aspectH);
             gDefaultShader->setAttribPointer(job->mT_XY->id(), gDefaultShader->mA_XY, 2, GL_FLOAT, GL_FALSE, 8, 0);
             gDefaultShader->setAttribPointer(job->mT_UV->id(), gDefaultShader->mA_UV, 2, GL_FLOAT, GL_FALSE, 8, 0);
             if (job->mT_C)
@@ -333,32 +356,16 @@ void NevoRenderPipeline::setNodeParams(float *inTrans4x4, float r, float g, floa
         }
         else 
         {
-            gDefaultShader->setUniform2f(gDefaultShader->mU_TS, 1.0f, 1.0f);
-            mXYvbo->update(0, 32, job->mQ_XY);
-            gDefaultShader->setAttribPointer(mXYvbo->id(), gDefaultShader->mA_XY, 2, GL_FLOAT, GL_FALSE, 8, 0);
-            mUVvbo->update(0, 32, job->mQ_UV);
-            gDefaultShader->setAttribPointer(mUVvbo->id(), gDefaultShader->mA_UV, 2, GL_FLOAT, GL_FALSE, 8, 0);
-            gDefaultShader->setAttrib4f(gDefaultShader->mA_C, job->b(), job->g(), job->r(), job->a());
-            mQIebo->draw(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);
+            // mXYvbo->update(0, 32, job->mQ_XY);
+            // gDefaultShader->setAttribPointer(mXYvbo->id(), gDefaultShader->mA_XY, 2, GL_FLOAT, GL_FALSE, 8, 0);
+            // mUVvbo->update(0, 32, job->mQ_UV);
+            // gDefaultShader->setAttribPointer(mUVvbo->id(), gDefaultShader->mA_UV, 2, GL_FLOAT, GL_FALSE, 8, 0);
+            // gDefaultShader->setAttrib4f(gDefaultShader->mA_C, job->b(), job->g(), job->r(), job->a());
+            // mQIebo->draw(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);
 
-            if (mPrevQuadJob)
+            if (!pushQuad(job))
             {
-                if (mPrevQuadJob->cmpmtl(job))
-                {
-                    if (!pushQuad(job))
-                    {
-                        flushQuads();
-                        pushQuad(job);
-                    }
-                }
-                else
-                {
-                    flushQuads();
-                    pushQuad(job);
-                }
-            }
-            else 
-            {
+                flushQuads();
                 pushQuad(job);
             }
         }
@@ -392,7 +399,6 @@ void NevoRenderPipeline::end()
 
 bool NevoRenderPipeline::pushQuad(Job *job)
 {
-    return false;
     if ((mI_n + 6) > cMaxVerts)
         return false;
 
@@ -402,23 +408,24 @@ bool NevoRenderPipeline::pushQuad(Job *job)
         mXY.inc() = job->mQ_XY[i].y;
         mUV.inc() = job->mQ_UV[i].u;
         mUV.inc() = job->mQ_UV[i].v;
+        mC.inc() = job->mBGRA;
     }
     mI_n += 6;
-    mPrevQuadJob = job;
+    mPrevJob = job;
 
     return true;
 }
 
 void NevoRenderPipeline::flushQuads()
 {
-    return;
     if (mI_n > 0)
     {
-        gDefaultShader->setUniform2f(gDefaultShader->mU_TS, 1.0f, 1.0f);
         mXYvbo->update(0, mXY.sizeMemSize(), &mXY[0]);
         gDefaultShader->setAttribPointer(mXYvbo->id(), gDefaultShader->mA_XY, 2, GL_FLOAT, GL_FALSE, 8, 0);
         mUVvbo->update(0, mUV.sizeMemSize(), &mUV[0]);
         gDefaultShader->setAttribPointer(mUVvbo->id(), gDefaultShader->mA_UV, 2, GL_FLOAT, GL_FALSE, 8, 0);
+        mCvbo->update(0, mC.sizeMemSize(), &mC[0]);
+        gDefaultShader->setAttribPointer(mCvbo->id(), gDefaultShader->mA_C, 4, GL_UNSIGNED_BYTE, GL_TRUE, 4, 0);
         mQIebo->draw(GL_TRIANGLES, mI_n, GL_UNSIGNED_SHORT, 0);
 
         mI_n = 0;
@@ -426,7 +433,7 @@ void NevoRenderPipeline::flushQuads()
         mUV.resize(0);
         mC.resize(0);
     }
-    mPrevQuadJob = 0;
+    mPrevJob = 0;
 }
 
 }
