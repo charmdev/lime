@@ -258,7 +258,6 @@ WString val2stdwstr(value inVal)
    return WString(val,len);
 }
 
-
 template<typename T>
 void FillArrayInt(QuickVec<T> &outArray,value inVal)
 {
@@ -2737,11 +2736,11 @@ value nme_gfx_draw_triangles(value *arg, int args )
       }
 
       int i_n = 0;
-      int *i = 0;
+      short *i = 0;
       if (!val_is_null(arg[aIndices]))
       {
          i_n = val_array_size(arg[aIndices]);
-         i = val_array_int(arg[aIndices]);
+         i = val_array_short(arg[aIndices]);
       }
 
       int uv_n = 0;

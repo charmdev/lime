@@ -47,6 +47,7 @@ public:
    int getAlphaTextureId();
    int getTextureWidth();
    int getTextureHeight();
+   bool alphaIsPremultiply();
    //=============================================================================  
 
    bool Encode( nme::ByteArray *outBytes,bool inPNG,double inQuality);

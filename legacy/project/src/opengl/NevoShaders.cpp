@@ -1,7 +1,10 @@
 #include "NevoShaders.h"
 
 #include <iostream>
-#include <sstream>
+
+#ifdef ANDROID
+#include <android/log.h>
+#endif
 
 using namespace nme;
 
@@ -54,6 +57,11 @@ void GPUProgram::setUniform1i(GLuint loc, GLfloat v)
     glUniform1i(loc, v);
 }
 
+void GPUProgram::setUniform4i(GLuint loc, GLint v0, GLint v1, GLint v2, GLint v3)
+{
+    glUniform4i(loc, v0, v1, v2, v3);
+}
+
 void GPUProgram::setUniform1iv(GLuint loc, GLsizei count, const GLint* v)
 {
     glUniform1iv(loc, count, v);
@@ -64,7 +72,20 @@ void GPUProgram::setMatrix4x4fv(GLuint loc, const GLfloat *v)
     glUniformMatrix4fv(loc, 1, 0, v);
 }
 
-void GPUProgram::createProgram()
+void GPUProgram::setAttribPointer(GLuint vbo, GLuint attrib, GLint size, GLenum type, GLboolean normalized, GLsizei stride, GLsizei offset)
+{
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glVertexAttribPointer(attrib, size, type, normalized, stride, (const void*)offset);
+    glEnableVertexAttribArray(attrib);
+}
+
+void GPUProgram::setAttrib4f(GLuint attrib, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3)
+{
+    glDisableVertexAttribArray(attrib);
+    glVertexAttrib4f(attrib, v0, v1, v2, v3);
+}
+
+void GPUProgram::createProgram(std::vector<std::string> attribs)
 {
     GLint success;
     GLuint vert = glCreateShader(GL_VERTEX_SHADER);
@@ -76,6 +97,9 @@ void GPUProgram::createProgram()
     {
         glGetShaderInfoLog(vert, 512, NULL, log);
         std::cout << "Vertex Compilation Error: " << log << std::endl;
+#ifdef ANDROID
+        __android_log_print(ANDROID_LOG_INFO, "Vertex Compilation Error: ", log);
+#endif
         return;
     }
 
@@ -88,18 +112,30 @@ void GPUProgram::createProgram()
     {
         glGetShaderInfoLog(frag, 512, NULL, log);
         std::cout << "Fragment Compilation Error: " << log << std::endl;
+#ifdef ANDROID
+        __android_log_print(ANDROID_LOG_INFO, "Fragment Compilation Error: ", log);
+#endif
         return;
     }
 
     mProg = glCreateProgram();
     glAttachShader(mProg, vert);
     glAttachShader(mProg, frag);
+
+    for (int i = 0; i < attribs.size(); ++i)
+    {
+        glBindAttribLocation(mProg, i, attribs[i].c_str());
+    }
+
     glLinkProgram(mProg);
     glGetProgramiv(mProg, GL_LINK_STATUS, &success);
     if(!success)
     {
         glGetProgramInfoLog(mProg, 512, NULL, log);
         std::cout << "Linking Error: " << log << std::endl;
+#ifdef ANDROID
+        __android_log_print(ANDROID_LOG_INFO, "Linking Error: ", log);
+#endif
         return;
     }
 
@@ -118,14 +154,8 @@ GLuint GPUProgram::getAttribLoc(const char *attribName)
 }
 
 //DefaultShader
-DefaultShader::DefaultShader(int numTexChannels)
+DefaultShader::DefaultShader()
 {
-    mU_T_Val.resize(numTexChannels);
-    for (int i = 0; i < numTexChannels; ++i)
-    {
-        mU_T_Val[i] = i;
-    }
-
 #ifdef NME_GLES
 	mVertSrc += "precision mediump float;";
 #endif
@@ -136,6 +166,7 @@ DefaultShader::DefaultShader(int numTexChannels)
                                                                     \
         attribute vec2 a_xy;                                        \
         attribute vec2 a_uv;                                        \
+        attribute vec4 a_c;                                         \
                                                                     \
         varying vec2 v_uv;                                          \
         varying vec4 v_c;                                           \
@@ -143,40 +174,54 @@ DefaultShader::DefaultShader(int numTexChannels)
         void main()                                                 \
         {                                                           \
             v_uv = a_uv * u_ts;                                     \
-            v_c = u_c;                                              \
+            v_c = u_c.bgra * a_c.bgra;                              \
             gl_Position = vec4(a_xy, 0.0, 1.0) * u_m;               \
         }                                                           \
     ";
 
-    std::ostringstream oss;
-    oss.clear();
-    oss << numTexChannels;
 #ifdef NME_GLES
 	mFragSrc += "precision mediump float;";
 #endif
     mFragSrc += "                                                   \
-    uniform sampler2D u_t[";
-    mFragSrc += oss.str();
-    mFragSrc += "];                                                 \
+        uniform sampler2D u_tC;                                     \
+        uniform sampler2D u_tA;                                     \
+        uniform ivec4 u_mtl;                                        \
                                                                     \
         varying vec2 v_uv;                                          \
         varying vec4 v_c;                                           \
                                                                     \
         void main()                                                 \
         {                                                           \
-            vec4 texel = texture2D(u_t[0], v_uv);                   \
-            gl_FragColor = texel * v_c;                             \
+            vec4 texel = vec4(1.0, 1.0, 1.0, 1.0);                  \
+            if (u_mtl[0] != 0)                                      \
+            {                                                       \
+                texel = texture2D(u_tC, v_uv);                      \
+                if (u_mtl[1] != 0)                                  \
+                    texel.a = texture2D(u_tA, v_uv).r;              \
+                if (u_mtl[2] != 0) texel.rgb /= texel.a;            \
+            }                                                       \
+            texel *= v_c;                                           \
+            texel.rgb *= texel.a;                                   \
+            if (u_mtl[3] != 0) texel.a = 0.0;                       \
+            gl_FragColor = texel;                                   \
         }                                                           \
     ";
 
-    createProgram();
+    std::vector<std::string> attribs;
+    attribs.push_back("a_xy");
+    attribs.push_back("a_uv");
+    attribs.push_back("a_c");
+    createProgram(attribs);
 
     mA_XY = getAttribLoc("a_xy");
     mA_UV = getAttribLoc("a_uv");
+    mA_C = getAttribLoc("a_c");
     mU_M = getUniformLoc("u_m");
-    mU_T = getUniformLoc("u_t");
+    mU_TC = getUniformLoc("u_tC");
+    mU_TA = getUniformLoc("u_tA");
     mU_TS = getUniformLoc("u_ts");
     mU_C = getUniformLoc("u_c");
+    mU_MTL = getUniformLoc("u_mtl");
 }
 
 }

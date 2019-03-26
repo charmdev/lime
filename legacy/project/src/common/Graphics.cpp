@@ -47,7 +47,7 @@ void Graphics::clear()
 {
 #ifdef NEVO_RENDER
    for (int i = 0; i < mNevoJobs.size(); ++i)
-       nevo::gNevoJobsPool.refund(mNevoJobs[i]);
+      nevo::gNevoJobsPool->refund(mNevoJobs[i]);
    mNevoJobs.resize(0);
    if (mTileTexture) mTileTexture->DecRef();
    if (mFillTexture) mFillTexture->DecRef();
@@ -129,7 +129,7 @@ void Graphics::drawCircle(float x,float y, float radius)
 void Graphics::drawRect(float x, float y, float width, float height)
 {
 #ifdef NEVO_RENDER
-   nevo::Job *job = mNevoJobs.inc() = nevo::gNevoJobsPool.get();
+   nevo::Job *job = mNevoJobs.inc() = nevo::gNevoJobsPool->get();
    job->mtl(mFillTexture, mFillBGRA, mOwner->getBlendMode());
    job->rect(x, y, width, height);
 #else
@@ -511,7 +511,7 @@ void Graphics::arcTo(float cx, float cy, float x, float y)
 void Graphics::tile(float x, float y, const Rect &inTileRect,float *inTrans,float *inRGBA)
 {
 #ifdef NEVO_RENDER
-   nevo::Job *job = mNevoJobs.inc() = nevo::gNevoJobsPool.get();
+   nevo::Job *job = mNevoJobs.inc() = nevo::gNevoJobsPool->get();
    unsigned int bgra = 0xFFFFFFFF;
    if (inRGBA)
    {
@@ -592,10 +592,10 @@ void Graphics::drawTriangles(const QuickVec<float> &inXYs,
 
 #ifdef NEVO_RENDER
 void Graphics::drawTrianglesNevo(int inXYs_n, float *inXYs,
-            int inIndixes_n, int *inIndixes, int inUVT_n, float *inUVT,
+            int inIndixes_n, short *inIndixes, int inUVT_n, float *inUVT,
             int inColours_n, int *inColours, int inCull, int blendMode)
 {
-   nevo::Job *job = mNevoJobs.inc() = nevo::gNevoJobsPool.get();
+   nevo::Job *job = mNevoJobs.inc() = nevo::gNevoJobsPool->get();
    job->mtl(mFillTexture, mFillBGRA, blendMode);
    job->triangles(inXYs_n, inXYs,
       inIndixes_n, inIndixes, inUVT_n, inUVT,
@@ -712,17 +712,14 @@ Extent2DF Graphics::GetSoftwareExtent(const Transform &inTransform, bool inInclu
    for (i = 0; i < mNevoJobs.size(); ++i)
    {
       job = mNevoJobs[i];
-      if (job->isTypeRect())
-      {
-         x = job->mQ_XY[0].x; y = job->mQ_XY[0].y;
-         result.Add(m->m00 * x + m->m01 * y + m->mtx, m->m10 * x + m->m11 * y + m->mty);
-         x = job->mQ_XY[1].x; y = job->mQ_XY[1].y;
-         result.Add(m->m00 * x + m->m01 * y + m->mtx, m->m10 * x + m->m11 * y + m->mty);
-         x = job->mQ_XY[2].x; y = job->mQ_XY[2].y;
-         result.Add(m->m00 * x + m->m01 * y + m->mtx, m->m10 * x + m->m11 * y + m->mty);
-         x = job->mQ_XY[3].x; y = job->mQ_XY[3].y;
-         result.Add(m->m00 * x + m->m01 * y + m->mtx, m->m10 * x + m->m11 * y + m->mty);
-      }
+      x = job->mBBminX; y = job->mBBminY;
+      result.Add(m->m00 * x + m->m01 * y + m->mtx, m->m10 * x + m->m11 * y + m->mty);
+      x = job->mBBmaxX; y = job->mBBminY;
+      result.Add(m->m00 * x + m->m01 * y + m->mtx, m->m10 * x + m->m11 * y + m->mty);
+      x = job->mBBmaxX; y = job->mBBmaxY;
+      result.Add(m->m00 * x + m->m01 * y + m->mtx, m->m10 * x + m->m11 * y + m->mty);
+      x = job->mBBminX; y = job->mBBmaxY;
+      result.Add(m->m00 * x + m->m01 * y + m->mtx, m->m10 * x + m->m11 * y + m->mty);
    }
 
    return result;
@@ -763,9 +760,6 @@ const Extent2DF &Graphics::GetExtent0(double inRotation)
 bool Graphics::Render( const RenderTarget &inTarget, const RenderState &inState )
 {
 #ifdef NEVO_RENDER
-   static nevo::Job *job;
-   static int i;
-
    if (inTarget.IsHardware())
    {
       if (inState.mPhase==rpHitTest)
@@ -774,15 +768,10 @@ bool Graphics::Render( const RenderTarget &inTarget, const RenderState &inState 
             return false;
          UserPoint screen(inState.mClipRect.x, inState.mClipRect.y);
          UserPoint pos = inState.mTransform.mMatrix->ApplyInverse(screen);
-         
-         for (i = 0; i < mNevoJobs.size(); ++i)
+         for (int i = 0; i < mNevoJobs.size(); ++i)
          {
-            job = mNevoJobs[i];
-            if (job->isTypeRect() || job->isTypeTile())
-            {
-               if (job->hitTest(pos.x, pos.y))
-                  return true;
-            }
+            if (mNevoJobs[i]->hitTest(pos.x, pos.y))
+               return true;
          }
          return false;
       }

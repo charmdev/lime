@@ -13,6 +13,9 @@ class Surface;
 namespace nevo
 {
 
+class VBO;
+class EBO;
+
 class Job
 {
 public:
@@ -20,10 +23,11 @@ public:
     ~Job();
     
     void mtl(nme::Surface *surface, unsigned int color, int blendMode);
+    bool cmpmtl(Job *job);
     void rect(float x, float y, float width, float height);
     void tile(float x, float y, int rectX, int rectY, int rectW, int rectH, float *inTrans);
     void triangles(int inXYs_n, float *inXYs,
-        int inIndixes_n, int *inIndixes, int inUVT_n, float *inUVT,
+        int inIndixes_n, short *inIndixes, int inUVT_n, float *inUVT,
         int inColours_n, int *inColours);
     bool hitTest(float x, float y);
     void clear();
@@ -41,9 +45,7 @@ public:
     bool isBlendModeNone() { return mFlags & 8; }
     bool isBlendModeNormal() { return mFlags & 16; }
     bool isBlendModeAdd() { return mFlags & 32; }
-
-    void setPremultAlpha() { mFlags |= 64; }
-    bool isPremultAlpha() { return mFlags & 64; }
+    unsigned char getBlendMode() { return mFlags & 56; }
 
     float r() { return mR / 255.0f; }
     float g() { return mG / 255.0f; }
@@ -52,9 +54,6 @@ public:
 
 public:
     nme::Surface *mSurface;
-    unsigned short int mTexColor, mTexAlpha;
-    unsigned short int mTexW, mTexH;
-    unsigned short int mTexPixW, mTexPixH;
     union {
         unsigned int mBGRA;
         struct { unsigned char mB, mG, mR, mA; };
@@ -65,19 +64,33 @@ public:
     {
         struct
         {
-            float *mT_XY;
-            float *mT_UV;
-            int *mT_C;
-            int *mT_I;
-            int mT_Vn;
+            VBO *mT_XY;
+            VBO *mT_UV;
+            VBO *mT_C;
+            EBO *mT_I;
             int mT_In;
         };
+        
         struct
         {
             struct { float x, y; } mQ_XY[4];
             struct { float u, v; } mQ_UV[4];
         };
     };
+
+    float mBBminX, mBBminY, mBBmaxX, mBBmaxY;
+    void initBB(float x, float y)
+    {
+        mBBminX = mBBmaxX = x;
+        mBBminY = mBBmaxY = y;
+    }
+    void calcBB(float x, float y)
+    {
+        if (x < mBBminX) mBBminX = x;
+        if (x > mBBmaxX) mBBmaxX = x;
+        if (y < mBBminY) mBBminY = y;
+        if (y > mBBmaxY) mBBmaxY = y;
+    }
 };
 
 class JobsPool
@@ -88,10 +101,9 @@ public:
 
     Job* get();
     void refund(Job *job);
-
 private:
-    Vec<Job*> mAllocJobs;
-    Vec<Job*> mFreeJobs;
+    Vec<Job*> mAlloc;
+    Vec<Job*> mFree;
 };
 
 class NevoRenderPipeline
@@ -109,21 +121,24 @@ public:
     void end();
 
 private:
+    bool pushQuad(Job *job);
+    void flushQuads();
+    Job *mPrevJob;
+
     Vec<Job*> *mJobs;
 
-    static const int cMaxIndex = 65535;
+    static const int cMaxVerts = 65535;
     Vec<float> mXY;
     Vec<float> mUV;
     Vec<int> mC;
-    Vec<unsigned short int> mI;
-
-    unsigned int mXYvbo;
-    unsigned int mUVvbo;
-    unsigned int mCvbo;
-    unsigned int mIebo;
+    int mI_n;
+    VBO *mXYvbo;
+    VBO *mUVvbo;
+    VBO *mCvbo;
+    EBO *mQIebo;
 };
 
-extern JobsPool gNevoJobsPool;
+extern JobsPool *gNevoJobsPool;
 extern NevoRenderPipeline gNevoRender;
 
 }

@@ -5,6 +5,7 @@
 #include "OGL.h"
 
 #include <string>
+#include <vector>
 
 namespace nevo
 {
@@ -23,8 +24,11 @@ public:
     void setUniform3f(GLuint loc, GLfloat v0, GLfloat v1, GLfloat v2);
     void setUniform4f(GLuint loc, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3);
     void setUniform1i(GLuint loc, GLfloat v);
+    void setUniform4i(GLuint loc, GLint v0, GLint v1, GLint v2, GLint v3);
     void setUniform1iv(GLuint loc, GLsizei count, const GLint* v);
     void setMatrix4x4fv(GLuint loc, const GLfloat *v);
+    void setAttribPointer(GLuint vbo, GLuint attrib, GLint size, GLenum type, GLboolean normalized, GLsizei stride, GLsizei offset);
+    void setAttrib4f(GLuint attrib, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3);
 
 protected:
     char log[512];
@@ -32,7 +36,7 @@ protected:
     std::string mFragSrc;
     GLuint mProg;
 
-    void createProgram();
+    void createProgram(std::vector<std::string> attribs);
     GLuint getUniformLoc(const char *uniformName);
     GLuint getAttribLoc(const char *attribName);
 };
@@ -40,17 +44,17 @@ protected:
 class DefaultShader : public GPUProgram
 {
 public:
-    DefaultShader(int numTexChannels);
+    DefaultShader();
 
     GLuint mA_XY;
     GLuint mA_UV;
+    GLuint mA_C;
     GLuint mU_M;
-    GLuint mU_T;
+    GLuint mU_TC;
+    GLuint mU_TA;
     GLuint mU_TS;
     GLuint mU_C;
-
-    Vec<int> mU_T_Val;
-
+    GLuint mU_MTL;
 private:
 
 };
