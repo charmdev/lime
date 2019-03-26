@@ -75,7 +75,7 @@ void Job::mtl(nme::Surface *surface, unsigned int color, int blendMode)
 
 bool Job::cmpmtl(Job *job)
 {
-    return (mSurface == job->mSurface) && (mBGRA == job->mBGRA) && (getBlendMode() == job->getBlendMode());
+    return (mSurface == job->mSurface);
 }
 
 void Job::rect(float x, float y, float width, float height)
@@ -251,9 +251,9 @@ void NevoRenderPipeline::Init()
     gEBOPool = new EBOPool();
     gNevoJobsPool = new JobsPool();
 
-    mXYvbo = gVBOPool->get(cMaxVerts * sizeof(float) * 2, true);
-    mUVvbo = gVBOPool->get(cMaxVerts * sizeof(float) * 2, true);
-    mCvbo = gVBOPool->get(cMaxVerts * sizeof(int), true);
+    mXYvbo = gVBOPool->get(cMaxVerts * sizeof(float) * 2);
+    mUVvbo = gVBOPool->get(cMaxVerts * sizeof(float) * 2);
+    mCvbo = gVBOPool->get(cMaxVerts * sizeof(int));
     mQIebo = gEBOPool->get(cMaxVerts * sizeof(unsigned short), true);
     unsigned short qIndex[cMaxVerts];
     qIndex[0] = 0; qIndex[1] = 1; qIndex[2] = 2;
@@ -356,13 +356,6 @@ void NevoRenderPipeline::setNodeParams(float *inTrans4x4, float r, float g, floa
         }
         else 
         {
-            // mXYvbo->update(0, 32, job->mQ_XY);
-            // gDefaultShader->setAttribPointer(mXYvbo->id(), gDefaultShader->mA_XY, 2, GL_FLOAT, GL_FALSE, 8, 0);
-            // mUVvbo->update(0, 32, job->mQ_UV);
-            // gDefaultShader->setAttribPointer(mUVvbo->id(), gDefaultShader->mA_UV, 2, GL_FLOAT, GL_FALSE, 8, 0);
-            // gDefaultShader->setAttrib4f(gDefaultShader->mA_C, job->b(), job->g(), job->r(), job->a());
-            // mQIebo->draw(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);
-
             if (!pushQuad(job))
             {
                 flushQuads();
