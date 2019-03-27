@@ -131,11 +131,7 @@ private:
     Vec<float> mXY;
     Vec<float> mUV;
     Vec<int> mC;
-    int mI_n;
-    VBO *mXYvbo;
-    VBO *mUVvbo;
-    VBO *mCvbo;
-    EBO *mQIebo;
+    Vec<unsigned short> mI;
 };
 
 extern JobsPool *gNevoJobsPool;

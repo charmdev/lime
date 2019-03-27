@@ -75,7 +75,7 @@ void Job::mtl(nme::Surface *surface, unsigned int color, int blendMode)
 
 bool Job::cmpmtl(Job *job)
 {
-    return (mSurface == job->mSurface);
+    return (mSurface == job->mSurface) && (getBlendMode() == job->getBlendMode());
 }
 
 void Job::rect(float x, float y, float width, float height)
@@ -233,7 +233,6 @@ void JobsPool::refund(Job *job)
 NevoRenderPipeline::NevoRenderPipeline()
 {
     mJobs = 0;
-    mI_n = 0;
     mPrevJob = 0;
 }
 
@@ -251,21 +250,10 @@ void NevoRenderPipeline::Init()
     gEBOPool = new EBOPool();
     gNevoJobsPool = new JobsPool();
 
-    mXYvbo = gVBOPool->get(cMaxVerts * sizeof(float) * 2);
-    mUVvbo = gVBOPool->get(cMaxVerts * sizeof(float) * 2);
-    mCvbo = gVBOPool->get(cMaxVerts * sizeof(int));
-    mQIebo = gEBOPool->get(cMaxVerts * sizeof(unsigned short), true);
-    unsigned short qIndex[cMaxVerts];
-    qIndex[0] = 0; qIndex[1] = 1; qIndex[2] = 2;
-    qIndex[3] = 2; qIndex[4] = 3; qIndex[5] = 0;
-    for (int i = 6; i < cMaxVerts; ++i)
-        qIndex[i] = qIndex[i - 6] + 4;
-    mQIebo->update(0, cMaxVerts * sizeof(unsigned short), qIndex);
-
     mXY.reserve(cMaxVerts * 2);
     mUV.reserve(cMaxVerts * 2);
     mC.reserve(cMaxVerts);
-    mI_n = 0;
+    mI.reserve(cMaxVerts);
 }
 
 void NevoRenderPipeline::Clear()
@@ -392,9 +380,16 @@ void NevoRenderPipeline::end()
 
 bool NevoRenderPipeline::pushQuad(Job *job)
 {
-    if ((mI_n + 6) > cMaxVerts)
+    if ((mI.size() + 6) > cMaxVerts)
         return false;
 
+    unsigned short points = mC.size();
+    mI.inc() = points + 0;
+    mI.inc() = points + 1;
+    mI.inc() = points + 2;
+    mI.inc() = points + 2;
+    mI.inc() = points + 3;
+    mI.inc() = points + 0;
     for (int i = 0; i < 4; ++i)
     {
         mXY.inc() = job->mQ_XY[i].x;
@@ -403,7 +398,6 @@ bool NevoRenderPipeline::pushQuad(Job *job)
         mUV.inc() = job->mQ_UV[i].v;
         mC.inc() = job->mBGRA;
     }
-    mI_n += 6;
     mPrevJob = job;
 
     return true;
@@ -411,20 +405,22 @@ bool NevoRenderPipeline::pushQuad(Job *job)
 
 void NevoRenderPipeline::flushQuads()
 {
-    if (mI_n > 0)
+    if (mI.size() > 0)
     {
-        mXYvbo->update(0, mXY.sizeMemSize(), &mXY[0]);
-        gDefaultShader->setAttribPointer(mXYvbo->id(), gDefaultShader->mA_XY, 2, GL_FLOAT, GL_FALSE, 8, 0);
-        mUVvbo->update(0, mUV.sizeMemSize(), &mUV[0]);
-        gDefaultShader->setAttribPointer(mUVvbo->id(), gDefaultShader->mA_UV, 2, GL_FLOAT, GL_FALSE, 8, 0);
-        mCvbo->update(0, mC.sizeMemSize(), &mC[0]);
-        gDefaultShader->setAttribPointer(mCvbo->id(), gDefaultShader->mA_C, 4, GL_UNSIGNED_BYTE, GL_TRUE, 4, 0);
-        mQIebo->draw(GL_TRIANGLES, mI_n, GL_UNSIGNED_SHORT, 0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+        glVertexAttribPointer(gDefaultShader->mA_XY, 2, GL_FLOAT, GL_FALSE, 8, &mXY[0]);
+        glEnableVertexAttribArray(gDefaultShader->mA_XY);
+        glVertexAttribPointer(gDefaultShader->mA_UV, 2, GL_FLOAT, GL_FALSE, 8, &mUV[0]);
+        glEnableVertexAttribArray(gDefaultShader->mA_UV);
+        glVertexAttribPointer(gDefaultShader->mA_C, 4, GL_UNSIGNED_BYTE, GL_TRUE, 4, &mC[0]);
+        glEnableVertexAttribArray(gDefaultShader->mA_C);
+        glDrawElements(GL_TRIANGLES, mI.size(), GL_UNSIGNED_SHORT, &mI[0]);
 
-        mI_n = 0;
         mXY.resize(0);
         mUV.resize(0);
         mC.resize(0);
+        mI.resize(0);
     }
     mPrevJob = 0;
 }
