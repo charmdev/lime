@@ -258,7 +258,6 @@ WString val2stdwstr(value inVal)
    return WString(val,len);
 }
 
-
 template<typename T>
 void FillArrayInt(QuickVec<T> &outArray,value inVal)
 {
@@ -2727,6 +2726,41 @@ value nme_gfx_draw_triangles(value *arg, int args )
    Graphics *gfx;
    if (AbstractToObject(arg[aGfx],gfx))
    {
+#ifdef NEVO_RENDER
+      int xy_n = 0;
+      float *xy = 0;
+      if (!val_is_null(arg[aVertices]))
+      {
+         xy_n = val_array_size(arg[aVertices]);
+         xy = val_array_float(arg[aVertices]);
+      }
+
+      int i_n = 0;
+      short *i = 0;
+      if (!val_is_null(arg[aIndices]))
+      {
+         i_n = val_array_size(arg[aIndices]);
+         i = val_array_short(arg[aIndices]);
+      }
+
+      int uv_n = 0;
+      float *uv = 0;
+      if (!val_is_null(arg[aUVData]))
+      {
+         uv_n = val_array_size(arg[aUVData]);
+         uv = val_array_float(arg[aUVData]);
+      }
+
+      int c_n = 0;
+      int *c = 0;
+      if (!val_is_null(arg[aColours]))
+      {
+         c_n = val_array_size(arg[aColours]);
+         c = val_array_int(arg[aColours]);
+      }
+
+      gfx->drawTrianglesNevo(xy_n, xy, i_n, i, uv_n, uv, c_n, c, val_int(arg[aCull]), val_int(arg[aBlend]));
+#else
       QuickVec<float> vertices;
       QuickVec<int> indices;
       QuickVec<float> uvt;
@@ -2738,6 +2772,7 @@ value nme_gfx_draw_triangles(value *arg, int args )
       FillArrayInt(colours, arg[aColours]);
       
       gfx->drawTriangles(vertices, indices, uvt, val_int(arg[aCull]), colours, val_int( arg[ aBlend ] ) );
+#endif
    }
    
    return alloc_null();

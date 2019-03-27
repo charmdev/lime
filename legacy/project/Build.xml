@@ -41,6 +41,7 @@
 	<files id="lime-legacy">
 		
 		<compilerflag value="-I${LEGACY_INCLUDE_DIR}" />
+		<compilerflag value="-DNEVO_RENDER" />
 		
 		<section if="windows">
 			
@@ -170,6 +171,9 @@
 		
 		<section if="LEGACY_OGL">
 			
+			<file name="${LEGACY_SRC_DIR}/opengl/NevoRenderPipeline.cpp" />
+			<file name="${LEGACY_SRC_DIR}/opengl/NevoShaders.cpp" />
+			<file name="${LEGACY_SRC_DIR}/opengl/NevoGLContainers.cpp" />
 			<file name="${LEGACY_SRC_DIR}/opengl/OpenGLContext.cpp" />
 			<file name="${LEGACY_SRC_DIR}/opengl/OGLTexture.cpp" />
 			<file name="${LEGACY_SRC_DIR}/opengl/OGLShaders.cpp" />
@@ -271,7 +275,6 @@
 		-->
 		
 		<file name="${HXCPP}/project/libs/zlib/ZLib.cpp" if="ios" />
-		
 	</files>
 	
 	<set name="LIBSUFFIX" value="${HX_TARGET_SUFFIX}" if="HX_TARGET_SUFFIX" />
