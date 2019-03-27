@@ -383,13 +383,12 @@ bool NevoRenderPipeline::pushQuad(Job *job)
     if ((mI.size() + 6) > cMaxVerts)
         return false;
 
-    unsigned short points = mC.size();
-    mI.inc() = points + 0;
-    mI.inc() = points + 1;
-    mI.inc() = points + 2;
-    mI.inc() = points + 2;
-    mI.inc() = points + 3;
-    mI.inc() = points + 0;
+    mI.inc() = mC.size() + 0;
+    mI.inc() = mC.size() + 1;
+    mI.inc() = mC.size() + 2;
+    mI.inc() = mC.size() + 2;
+    mI.inc() = mC.size() + 3;
+    mI.inc() = mC.size() + 0;
     for (int i = 0; i < 4; ++i)
     {
         mXY.inc() = job->mQ_XY[i].x;
