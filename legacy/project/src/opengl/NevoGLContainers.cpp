@@ -1,6 +1,7 @@
 #include "NevoGLContainers.h"
 
 #include "OGL.h"
+#include <memory.h>
 
 using namespace nme;
 
@@ -23,6 +24,78 @@ static int sizePO2(int bytes, int *power)
     }
     return bytes_po2;
 }
+
+//MemoryBuffer
+MemoryBuffer::MemoryBuffer(int size)
+{
+    mSize = nevo::sizePO2(size, &mSizePO2);
+    mPtr = (void*)malloc(mSize);
+}
+
+MemoryBuffer::~MemoryBuffer()
+{
+    free(mPtr);
+}
+
+void* MemoryBuffer::ptr()
+{
+    return mPtr;
+}
+
+void MemoryBuffer::update(int offset, int size, void *data)
+{
+    memcpy((char*)mPtr + offset, data, size);
+}
+
+int MemoryBuffer::size()
+{
+    return mSize;
+}
+
+int MemoryBuffer::sizePO2()
+{
+    return mSizePO2;
+}
+
+//MemoryBufferPool
+MemoryBufferPool::MemoryBufferPool()
+{
+    mFree.resize(gMaxBufSizePower);
+    for (int i = 0; i < gMaxBufSizePower; ++i)
+        mFree[i] = new Vec<MemoryBuffer*>();
+}
+
+MemoryBufferPool::~MemoryBufferPool()
+{
+    for (int i = 0; i < mAlloc.size(); ++i)
+        delete mAlloc[i];
+    for (int i = 0; i < gMaxBufSizePower; ++i)
+        delete mFree[i];
+}
+
+MemoryBuffer* MemoryBufferPool::get(int size)
+{
+    if (size > gMaxBufSize)
+        return 0;
+    
+    int sizePO2;
+    int sizePO2bytes = nevo::sizePO2(size, &sizePO2);
+
+    if (mFree[sizePO2]->size() > 0)
+    {
+        MemoryBuffer *mb = mFree[sizePO2]->last();
+        mFree[sizePO2]->dec();
+        return mb;
+    }
+    return mAlloc.inc() = new MemoryBuffer(size);
+}
+
+void MemoryBufferPool::refund(MemoryBuffer *mb)
+{
+    mFree[mb->sizePO2()]->inc() = mb;
+}
+
+MemoryBufferPool gMemoryBufferPool;
 
 //VBO
 VBO::VBO(int size, bool staticStorage)

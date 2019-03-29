@@ -6,6 +6,39 @@
 namespace nevo
 {
 
+class MemoryBuffer
+{
+public:
+    MemoryBuffer(int size);
+    ~MemoryBuffer();
+
+    void* ptr();
+    void update(int offset, int size, void *data);
+    int size();
+    int sizePO2();
+
+private:
+    void *mPtr;
+    int mSize;
+    int mSizePO2;
+};
+
+class MemoryBufferPool
+{
+public:
+    MemoryBufferPool();
+    ~MemoryBufferPool();
+
+    MemoryBuffer* get(int size);
+    void refund(MemoryBuffer *mb);
+
+private:
+    Vec<MemoryBuffer*> mAlloc;
+    Vec<Vec<MemoryBuffer*>*> mFree;
+};
+
+extern MemoryBufferPool gMemoryBufferPool;
+
 class VBO
 {
 public:

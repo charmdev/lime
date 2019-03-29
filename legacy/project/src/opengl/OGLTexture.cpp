@@ -388,6 +388,7 @@ public:
 
    void BindFlags(bool inRepeat,bool inSmooth)
    {
+      glBindTexture(GL_TEXTURE_2D,mTextureID);
       if (!mCanRepeat) inRepeat = false;
       if (mRepeat!=inRepeat)
       {
@@ -556,44 +557,40 @@ class OGLCompressedTexture : public Texture
 
   void Bind(int inSlot)
   {
-    if (inSlot >= 0 && CHECK_EXT(glActiveTexture))
-    {
-      glActiveTexture(GL_TEXTURE0 + inSlot);
-    }
-    glBindTexture(GL_TEXTURE_2D, mTextureID);
+      if (inSlot >= 0 && CHECK_EXT(glActiveTexture))
+      {
+         glActiveTexture(GL_TEXTURE0 + inSlot);
+      }
+      glBindTexture(GL_TEXTURE_2D, mTextureID);
 
-    if (mSurface->hasSepAlpha())
-    {
-      glActiveTexture(GL_TEXTURE1);
-      glEnable(GL_TEXTURE_2D);
-      glBindTexture(GL_TEXTURE_2D, mAlphaID);
-    }
-	
-	mSlot = inSlot;
+      if (mSurface->hasSepAlpha())
+      {
+         glActiveTexture(GL_TEXTURE1);
+         glEnable(GL_TEXTURE_2D);
+         glBindTexture(GL_TEXTURE_2D, mAlphaID);
+      }
+      
+      mSlot = inSlot;
   }
   
   void BindFlags(bool inRepeat, bool inSmooth) 
   {
-    bool repeatChanged = (mRepeat != inRepeat);
-	bool smoothChanged = (mSmooth != inSmooth);
+      bool repeatChanged = (mRepeat != inRepeat);
+	   bool smoothChanged = (mSmooth != inSmooth);
 	
-	mRepeat = inRepeat;
-	mSmooth = inSmooth;
-	
-	if (mSurface->hasSepAlpha())
-	{
-		glActiveTexture(GL_TEXTURE0 + mSlot);
-	}
-	
-	// bind flags for color texture
-	BindFlagsForTexture(repeatChanged, smoothChanged);
-	
-	// bind flags for alpha texture (if there is one)
-	if (mSurface->hasSepAlpha())
-	{
-		glActiveTexture(GL_TEXTURE0 + mSlot + 1);
-		BindFlagsForTexture(repeatChanged, smoothChanged);
-	}
+      mRepeat = inRepeat;
+      mSmooth = inSmooth;
+      
+      // bind flags for color texture
+      glBindTexture(GL_TEXTURE_2D, mTextureID);
+      BindFlagsForTexture(repeatChanged, smoothChanged);
+      
+      // bind flags for alpha texture (if there is one)
+      if (mSurface->hasSepAlpha())
+      {
+         glBindTexture(GL_TEXTURE_2D, mAlphaID);
+         BindFlagsForTexture(repeatChanged, smoothChanged);
+      }
   }
 
   UserPoint PixelToTex(const UserPoint &inPixels)

@@ -261,6 +261,7 @@ void Graphics::drawGraphicsDatum(IGraphicsData *inData)
             if (mFillTexture) mFillTexture->DecRef();
             mFillTexture = bf->bitmapData;
             if (mFillTexture) mFillTexture->IncRef();
+            if (mFillTexture) mFillTexture->GetTexture(nme::HardwareRenderer::current)->BindFlags(bf->repeat, bf->smooth);
             mFillBGRA = 0xFFFFFFFF;
          }
          break;
@@ -382,6 +383,7 @@ void Graphics::beginBitmapFill(Surface *bitmapData, const Matrix &inMatrix,
    if (mFillTexture) mFillTexture->DecRef();
    mFillTexture = bitmapData;
    if (mFillTexture) mFillTexture->IncRef();
+   if (mFillTexture) mFillTexture->GetTexture(nme::HardwareRenderer::current)->BindFlags(inRepeat, inSmooth);
    mFillBGRA = 0xFFFFFFFF;
 #else
    Flush(false,true,true);
@@ -414,6 +416,7 @@ void Graphics::beginTiles(Surface *bitmapData,bool inSmooth,int inBlendMode)
    if (mTileTexture) mTileTexture->DecRef();
    mTileTexture = bitmapData;
    if (mTileTexture) mTileTexture->IncRef();
+   if (mTileTexture) mTileTexture->GetTexture(nme::HardwareRenderer::current)->BindFlags(false, inSmooth);
    mTileBlendMode = inBlendMode;
 #else
    endFill();

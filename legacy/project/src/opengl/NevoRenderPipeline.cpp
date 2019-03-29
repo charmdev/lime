@@ -144,7 +144,7 @@ void Job::triangles(int inXYs_n, float *inXYs,
 
     if (inXYs)
     {
-        mT_XY = gVBOPool->get(inXYs_n * sizeof(float));
+        mT_XY = gMemoryBufferPool.get(inXYs_n * sizeof(float));
         mT_XY->update(0, inXYs_n * sizeof(float), inXYs);
 
         initBB(inXYs[0], inXYs[1]);
@@ -159,19 +159,19 @@ void Job::triangles(int inXYs_n, float *inXYs,
 
     if (inUVT)
     {
-        mT_UV = gVBOPool->get(inUVT_n * sizeof(float));
+        mT_UV = gMemoryBufferPool.get(inUVT_n * sizeof(float));
         mT_UV->update(0, inUVT_n * sizeof(float), inUVT);
     }
 
     if (inColours)
     {
-        mT_C = gVBOPool->get(inColours_n * sizeof(int));
+        mT_C = gMemoryBufferPool.get(inColours_n * sizeof(int));
         mT_C->update(0, inColours_n * sizeof(int), inColours);
     }
 
     if (inIndixes)
     {
-        mT_I = gEBOPool->get(inIndixes_n * sizeof(short));
+        mT_I = gMemoryBufferPool.get(inIndixes_n * sizeof(short));
         mT_I->update(0, inIndixes_n * sizeof(short), inIndixes);
         mT_In = inIndixes_n;
     }
@@ -191,10 +191,10 @@ void Job::clear()
     mBGRA = 0;
     if (isTypeTriangles())
     {
-        if (mT_XY) gVBOPool->refund(mT_XY);
-        if (mT_UV) gVBOPool->refund(mT_UV);
-        if (mT_C) gVBOPool->refund(mT_C);
-        if (mT_I) gEBOPool->refund(mT_I);
+        if (mT_XY) gMemoryBufferPool.refund(mT_XY);
+        if (mT_UV) gMemoryBufferPool.refund(mT_UV);
+        if (mT_C) gMemoryBufferPool.refund(mT_C);
+        if (mT_I) gMemoryBufferPool.refund(mT_I);
     }
     mT_XY = 0; mT_UV = 0; mT_C = 0; mT_I = 0; mT_In = 0;
     mFlags = 0;
@@ -309,19 +309,11 @@ void NevoRenderPipeline::setNodeParams(float *inTrans4x4, float r, float g, floa
             {
                 glActiveTexture(GL_TEXTURE0);
                 glBindTexture(GL_TEXTURE_2D, job->mSurface->getTextureId());
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
                 mtlC = true;
                 if (job->mSurface->getAlphaTextureId())
                 {
                     glActiveTexture(GL_TEXTURE1);
                     glBindTexture(GL_TEXTURE_2D, job->mSurface->getAlphaTextureId());
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
                     mtlA = true;
                 }
                 mtlPremultA = job->mSurface->alphaIsPremultiply();
@@ -342,13 +334,29 @@ void NevoRenderPipeline::setNodeParams(float *inTrans4x4, float r, float g, floa
         {
             flushQuads();
 
-            gDefaultShader->setAttribPointer(job->mT_XY->id(), gDefaultShader->mA_XY, 2, GL_FLOAT, GL_FALSE, 8, 0);
-            gDefaultShader->setAttribPointer(job->mT_UV->id(), gDefaultShader->mA_UV, 2, GL_FLOAT, GL_FALSE, 8, 0);
+            // gDefaultShader->setAttribPointer(job->mT_XY->id(), gDefaultShader->mA_XY, 2, GL_FLOAT, GL_FALSE, 8, 0);
+            // gDefaultShader->setAttribPointer(job->mT_UV->id(), gDefaultShader->mA_UV, 2, GL_FLOAT, GL_FALSE, 8, 0);
+            // if (job->mT_C)
+            //     gDefaultShader->setAttribPointer(job->mT_C->id(), gDefaultShader->mA_C, 4, GL_UNSIGNED_BYTE, GL_TRUE, 4, 0);
+            // else
+            //     gDefaultShader->setAttrib4f(gDefaultShader->mA_C, job->b(), job->g(), job->r(), job->a());
+            // job->mT_I->draw(GL_TRIANGLES, job->mT_In, GL_UNSIGNED_SHORT, 0);
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+            glVertexAttribPointer(gDefaultShader->mA_XY, 2, GL_FLOAT, GL_FALSE, 8, job->mT_XY->ptr());
+            glEnableVertexAttribArray(gDefaultShader->mA_XY);
+            glVertexAttribPointer(gDefaultShader->mA_UV, 2, GL_FLOAT, GL_FALSE, 8, job->mT_UV->ptr());
+            glEnableVertexAttribArray(gDefaultShader->mA_UV);
             if (job->mT_C)
-                gDefaultShader->setAttribPointer(job->mT_C->id(), gDefaultShader->mA_C, 4, GL_UNSIGNED_BYTE, GL_TRUE, 4, 0);
+            {
+                glVertexAttribPointer(gDefaultShader->mA_C, 4, GL_UNSIGNED_BYTE, GL_TRUE, 4, job->mT_C->ptr());
+                glEnableVertexAttribArray(gDefaultShader->mA_C);
+            }
             else
+            {
                 gDefaultShader->setAttrib4f(gDefaultShader->mA_C, job->b(), job->g(), job->r(), job->a());
-            job->mT_I->draw(GL_TRIANGLES, job->mT_In, GL_UNSIGNED_SHORT, 0);
+            }
+            glDrawElements(GL_TRIANGLES, job->mT_In, GL_UNSIGNED_SHORT, job->mT_I->ptr());
         }
         else 
         {
