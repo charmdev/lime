@@ -15,7 +15,7 @@ namespace nevo
 
 class VBO;
 class EBO;
-class MemoryBuffer;
+class Memory;
 
 class Job
 {
@@ -65,10 +65,10 @@ public:
     {
         struct
         {
-            MemoryBuffer *mT_XY;
-            MemoryBuffer *mT_UV;
-            MemoryBuffer *mT_C;
-            MemoryBuffer *mT_I;
+            Memory *mT_XY;
+            Memory *mT_UV;
+            Memory *mT_C;
+            Memory *mT_I;
             int mT_In;
         };
         

@@ -157,7 +157,7 @@ GLuint GPUProgram::getAttribLoc(const char *attribName)
 DefaultShader::DefaultShader()
 {
 #ifdef NME_GLES
-	mVertSrc += "precision mediump float;";
+	mVertSrc += "precision highp float;";
 #endif
     mVertSrc += "                                                   \
         uniform mat4 u_m;                                           \

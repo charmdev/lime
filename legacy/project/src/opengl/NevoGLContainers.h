@@ -6,48 +6,48 @@
 namespace nevo
 {
 
-class MemoryBuffer
+class Memory;
+
+/*class GLBuffer
 {
 public:
-    MemoryBuffer(int size);
-    ~MemoryBuffer();
+    GLBuffer(int size);
+    ~GLBuffer();
 
-    void* ptr();
-    void update(int offset, int size, void *data);
     int size();
     int sizePO2();
 
+    void bind(int type);
+    void update(int type, int offset, int size, void *data);
+
 private:
-    void *mPtr;
     int mSize;
     int mSizePO2;
+    Memory *m;
+    unsigned mId;
 };
 
-class MemoryBufferPool
+class GLBufferPool
 {
 public:
-    MemoryBufferPool();
-    ~MemoryBufferPool();
+    GLBufferPool();
+    ~GLBufferPool();
 
-    MemoryBuffer* get(int size);
-    void refund(MemoryBuffer *mb);
-
+    GLBuffer* get(int size);
+    void refund(GLBuffer *b);
 private:
-    Vec<MemoryBuffer*> mAlloc;
-    Vec<Vec<MemoryBuffer*>*> mFree;
-};
-
-extern MemoryBufferPool gMemoryBufferPool;
+    Vec<GLBuffer*> mAlloc;
+    Vec<Vec<GLBuffer*>*> mFree;
+};*/
 
 class VBO
 {
 public:
-    VBO(int size, bool staticStorage = false);
+    VBO(int size);
     ~VBO();
 
     int size();
     int sizePO2();
-    bool isStatic();
 
     unsigned id();
     void update(int offset, int size, void *data);
@@ -56,7 +56,6 @@ private:
     unsigned mVBO;
     int mSize;
     int mSizePO2;
-    bool mStaticStorage;
 };
 
 class VBOPool
@@ -65,23 +64,21 @@ public:
     VBOPool();
     ~VBOPool();
 
-    VBO* get(int size, bool staticStorage = false);
+    VBO* get(int size);
     void refund(VBO *vbo);
 private:
     Vec<VBO*> mAlloc;
-    Vec<Vec<VBO*>*> mFreeStatic;
-    Vec<Vec<VBO*>*> mFreeDynamic;
+    Vec<Vec<VBO*>*> mFree;
 };
 
 class EBO
 {
 public:
-    EBO(int size, bool staticStorage = false);
+    EBO(int size);
     ~EBO();
 
     int size();
     int sizePO2();
-    bool isStatic();
 
     void update(int offset, int size, void *data);
     void draw(unsigned mode, int count, unsigned type, int offset);
@@ -90,7 +87,6 @@ private:
     unsigned mEBO;
     int mSize;
     int mSizePO2;
-    bool mStaticStorage;
 };
 
 class EBOPool
@@ -99,12 +95,11 @@ public:
     EBOPool();
     ~EBOPool();
 
-    EBO* get(int size, bool staticStorage = false);
+    EBO* get(int size);
     void refund(EBO *ebo);
 private:
     Vec<EBO*> mAlloc;
-    Vec<Vec<EBO*>*> mFreeStatic;
-    Vec<Vec<EBO*>*> mFreeDynamic;
+    Vec<Vec<EBO*>*> mFree;
 };
 
 }

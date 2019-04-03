@@ -6,6 +6,7 @@
 
 #include "NevoShaders.h"
 #include "NevoGLContainers.h"
+#include "NevoMemory.h"
 
 using namespace nme;
 
@@ -144,7 +145,7 @@ void Job::triangles(int inXYs_n, float *inXYs,
 
     if (inXYs)
     {
-        mT_XY = gMemoryBufferPool.get(inXYs_n * sizeof(float));
+        mT_XY = gMemoryPool.get(inXYs_n * sizeof(float));
         mT_XY->update(0, inXYs_n * sizeof(float), inXYs);
 
         initBB(inXYs[0], inXYs[1]);
@@ -159,19 +160,19 @@ void Job::triangles(int inXYs_n, float *inXYs,
 
     if (inUVT)
     {
-        mT_UV = gMemoryBufferPool.get(inUVT_n * sizeof(float));
+        mT_UV = gMemoryPool.get(inUVT_n * sizeof(float));
         mT_UV->update(0, inUVT_n * sizeof(float), inUVT);
     }
 
     if (inColours)
     {
-        mT_C = gMemoryBufferPool.get(inColours_n * sizeof(int));
+        mT_C = gMemoryPool.get(inColours_n * sizeof(int));
         mT_C->update(0, inColours_n * sizeof(int), inColours);
     }
 
     if (inIndixes)
     {
-        mT_I = gMemoryBufferPool.get(inIndixes_n * sizeof(short));
+        mT_I = gMemoryPool.get(inIndixes_n * sizeof(short));
         mT_I->update(0, inIndixes_n * sizeof(short), inIndixes);
         mT_In = inIndixes_n;
     }
@@ -191,10 +192,10 @@ void Job::clear()
     mBGRA = 0;
     if (isTypeTriangles())
     {
-        if (mT_XY) gMemoryBufferPool.refund(mT_XY);
-        if (mT_UV) gMemoryBufferPool.refund(mT_UV);
-        if (mT_C) gMemoryBufferPool.refund(mT_C);
-        if (mT_I) gMemoryBufferPool.refund(mT_I);
+        if (mT_XY) gMemoryPool.refund(mT_XY);
+        if (mT_UV) gMemoryPool.refund(mT_UV);
+        if (mT_C) gMemoryPool.refund(mT_C);
+        if (mT_I) gMemoryPool.refund(mT_I);
     }
     mT_XY = 0; mT_UV = 0; mT_C = 0; mT_I = 0; mT_In = 0;
     mFlags = 0;

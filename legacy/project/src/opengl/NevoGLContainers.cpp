@@ -1,7 +1,7 @@
 #include "NevoGLContainers.h"
 
 #include "OGL.h"
-#include <memory.h>
+#include "NevoMemory.h"
 
 using namespace nme;
 
@@ -25,86 +25,13 @@ static int sizePO2(int bytes, int *power)
     return bytes_po2;
 }
 
-//MemoryBuffer
-MemoryBuffer::MemoryBuffer(int size)
-{
-    mSize = nevo::sizePO2(size, &mSizePO2);
-    mPtr = (void*)malloc(mSize);
-}
-
-MemoryBuffer::~MemoryBuffer()
-{
-    free(mPtr);
-}
-
-void* MemoryBuffer::ptr()
-{
-    return mPtr;
-}
-
-void MemoryBuffer::update(int offset, int size, void *data)
-{
-    memcpy((char*)mPtr + offset, data, size);
-}
-
-int MemoryBuffer::size()
-{
-    return mSize;
-}
-
-int MemoryBuffer::sizePO2()
-{
-    return mSizePO2;
-}
-
-//MemoryBufferPool
-MemoryBufferPool::MemoryBufferPool()
-{
-    mFree.resize(gMaxBufSizePower);
-    for (int i = 0; i < gMaxBufSizePower; ++i)
-        mFree[i] = new Vec<MemoryBuffer*>();
-}
-
-MemoryBufferPool::~MemoryBufferPool()
-{
-    for (int i = 0; i < mAlloc.size(); ++i)
-        delete mAlloc[i];
-    for (int i = 0; i < gMaxBufSizePower; ++i)
-        delete mFree[i];
-}
-
-MemoryBuffer* MemoryBufferPool::get(int size)
-{
-    if (size > gMaxBufSize)
-        return 0;
-    
-    int sizePO2;
-    int sizePO2bytes = nevo::sizePO2(size, &sizePO2);
-
-    if (mFree[sizePO2]->size() > 0)
-    {
-        MemoryBuffer *mb = mFree[sizePO2]->last();
-        mFree[sizePO2]->dec();
-        return mb;
-    }
-    return mAlloc.inc() = new MemoryBuffer(size);
-}
-
-void MemoryBufferPool::refund(MemoryBuffer *mb)
-{
-    mFree[mb->sizePO2()]->inc() = mb;
-}
-
-MemoryBufferPool gMemoryBufferPool;
-
 //VBO
-VBO::VBO(int size, bool staticStorage)
+VBO::VBO(int size)
 {
     mSize = nevo::sizePO2(size, &mSizePO2);
-    mStaticStorage = staticStorage;
     glGenBuffers(1, &mVBO);
     glBindBuffer(GL_ARRAY_BUFFER, mVBO);
-    glBufferData(GL_ARRAY_BUFFER, mSize, 0, mStaticStorage ? GL_STATIC_DRAW : GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, mSize, 0, GL_STATIC_DRAW);
 }
 
 VBO::~VBO()
@@ -122,11 +49,6 @@ int VBO::sizePO2()
     return mSizePO2;
 }
 
-bool VBO::isStatic()
-{
-    return mStaticStorage;
-}
-
 unsigned VBO::id()
 {
     return mVBO;
@@ -141,13 +63,9 @@ void VBO::update(int offset, int size, void *data)
 //VBOPool
 VBOPool::VBOPool()
 {
-    mFreeStatic.resize(gMaxBufSizePower);
-    mFreeDynamic.resize(gMaxBufSizePower);
+    mFree.resize(gMaxBufSizePower);
     for (int i = 0; i < gMaxBufSizePower; ++i)
-    {
-        mFreeStatic[i] = new Vec<VBO*>();
-        mFreeDynamic[i] = new Vec<VBO*>();
-    }
+        mFree[i] = new Vec<VBO*>();
 }
 
 VBOPool::~VBOPool()
@@ -155,13 +73,10 @@ VBOPool::~VBOPool()
     for (int i = 0; i < mAlloc.size(); ++i)
         delete mAlloc[i];
     for (int i = 0; i < gMaxBufSizePower; ++i)
-    {
-        delete mFreeStatic[i];
-        delete mFreeDynamic[i];
-    }
+        delete mFree[i];
 }
 
-VBO* VBOPool::get(int size, bool staticStorage)
+VBO* VBOPool::get(int size)
 {
     if (size > gMaxBufSize)
         return 0;
@@ -169,43 +84,27 @@ VBO* VBOPool::get(int size, bool staticStorage)
     int sizePO2;
     int sizePO2bytes = nevo::sizePO2(size, &sizePO2);
 
-    if (staticStorage)
+    if (mFree[sizePO2]->size() > 0)
     {
-        if (mFreeStatic[sizePO2]->size() > 0)
-        {
-            VBO *vbo = mFreeStatic[sizePO2]->last();
-            mFreeStatic[sizePO2]->dec();
-            return vbo;
-        }
+        VBO *vbo = mFree[sizePO2]->last();
+        mFree[sizePO2]->dec();
+        return vbo;
     }
-    else
-    {
-        if (mFreeDynamic[sizePO2]->size() > 0)
-        {
-            VBO *vbo = mFreeDynamic[sizePO2]->last();
-            mFreeDynamic[sizePO2]->dec();
-            return vbo;
-        }
-    }
-    return mAlloc.inc() = new VBO(size, staticStorage);
+    return mAlloc.inc() = new VBO(size);
 }
 
 void VBOPool::refund(VBO *vbo)
 {
-    if (vbo->isStatic())
-        mFreeStatic[vbo->sizePO2()]->inc() = vbo;
-    else
-        mFreeDynamic[vbo->sizePO2()]->inc() = vbo;
+    mFree[vbo->sizePO2()]->inc() = vbo;
 }
 
 //EBO
-EBO::EBO(int size, bool staticStorage)
+EBO::EBO(int size)
 {
     mSize = nevo::sizePO2(size, &mSizePO2);
-    mStaticStorage = staticStorage;
     glGenBuffers(1, &mEBO);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mEBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, mSize, 0, mStaticStorage ? GL_STATIC_DRAW : GL_DYNAMIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, mSize, 0, GL_STATIC_DRAW);
 }
 
 EBO::~EBO()
@@ -223,11 +122,6 @@ int EBO::sizePO2()
     return mSizePO2;
 }
 
-bool EBO::isStatic()
-{
-    return mStaticStorage;
-}
-
 void EBO::update(int offset, int size, void *data)
 {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mEBO);
@@ -243,13 +137,9 @@ void EBO::draw(unsigned mode, int count, unsigned type, int offset)
 //EBOPool
 EBOPool::EBOPool()
 {
-    mFreeStatic.resize(gMaxBufSizePower);
-    mFreeDynamic.resize(gMaxBufSizePower);
+    mFree.resize(gMaxBufSizePower);
     for (int i = 0; i < gMaxBufSizePower; ++i)
-    {
-        mFreeStatic[i] = new Vec<EBO*>();
-        mFreeDynamic[i] = new Vec<EBO*>();
-    }
+        mFree[i] = new Vec<EBO*>();
 }
 
 EBOPool::~EBOPool()
@@ -257,13 +147,10 @@ EBOPool::~EBOPool()
     for (int i = 0; i < mAlloc.size(); ++i)
         delete mAlloc[i];
     for (int i = 0; i < gMaxBufSizePower; ++i)
-    {
-        delete mFreeStatic[i];
-        delete mFreeDynamic[i];
-    }
+        delete mFree[i];
 }
 
-EBO* EBOPool::get(int size, bool staticStorage)
+EBO* EBOPool::get(int size)
 {
     if (size > gMaxBufSize)
         return 0;
@@ -271,33 +158,18 @@ EBO* EBOPool::get(int size, bool staticStorage)
     int sizePO2;
     int sizePO2bytes = nevo::sizePO2(size, &sizePO2);
 
-    if (staticStorage)
+    if (mFree[sizePO2]->size() > 0)
     {
-        if (mFreeStatic[sizePO2]->size() > 0)
-        {
-            EBO *ebo = mFreeStatic[sizePO2]->last();
-            mFreeStatic[sizePO2]->dec();
-            return ebo;
-        }
+        EBO *ebo = mFree[sizePO2]->last();
+        mFree[sizePO2]->dec();
+        return ebo;
     }
-    else
-    {
-        if (mFreeDynamic[sizePO2]->size() > 0)
-        {
-            EBO *ebo = mFreeDynamic[sizePO2]->last();
-            mFreeDynamic[sizePO2]->dec();
-            return ebo;
-        }
-    }
-    return mAlloc.inc() = new EBO(size, staticStorage);
+    return mAlloc.inc() = new EBO(size);
 }
 
 void EBOPool::refund(EBO *ebo)
 {
-    if (ebo->isStatic())
-        mFreeStatic[ebo->sizePO2()]->inc() = ebo;
-    else
-        mFreeDynamic[ebo->sizePO2()]->inc() = ebo;
+    mFree[ebo->sizePO2()]->inc() = ebo;
 }
 
 }
