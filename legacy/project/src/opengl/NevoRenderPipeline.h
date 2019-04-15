@@ -17,6 +17,31 @@ class VBO;
 class EBO;
 class Memory;
 
+struct Color
+{
+    Color() {}
+    ~Color() {}
+
+    float r() { return mR / 255.0f; }
+    float g() { return mG / 255.0f; }
+    float b() { return mB / 255.0f; }
+    float a() { return mA / 255.0f; }
+
+    void mult(float nR, float nG, float nB, float nA)
+    {
+        mR = (unsigned char)(r() * nR * 255.0f);
+        mG = (unsigned char)(g() * nG * 255.0f);
+        mB = (unsigned char)(b() * nB * 255.0f);
+        mA = (unsigned char)(a() * nA * 255.0f);
+    }
+
+    union
+    {
+        unsigned int mBGRA;
+        struct { unsigned char mB, mG, mR, mA; };
+    };
+};
+
 class Job
 {
 public:
@@ -118,13 +143,26 @@ public:
 
     void setJobs(Vec<Job*> *jobs);
     void setNodeParams(float *inTrans4x4, float r, float g, float b, float a);
+    void setNodeParams2(float *inTrans4x4, float r, float g, float b, float a);
     void begin();
     void end();
+    void flushGeometry();
 
 private:
     bool pushQuad(Job *job);
-    void flushQuads();
+    void pushTriangles(Job *job);
     Job *mPrevJob;
+
+    static const int cMaxCh = 8;
+    int mCurCh;
+    Vec<int> mChU;
+    Vec<int> mChTex;
+    Vec<int> mTexCh;
+    float mMtlC, mMtlA, mMtlPremA, mMtlAddBlend;
+    bool setMtl(Job *job);
+    void clrMtl();
+    float mT00, mT01, mT10, mT11, mTTX, mTTY;
+    float mR, mG, mB, mA;
 
     Vec<Job*> *mJobs;
 
@@ -133,6 +171,7 @@ private:
     Vec<float> mUV;
     Vec<int> mC;
     Vec<unsigned short> mI;
+    Vec<float> mMTL;
 };
 
 extern JobsPool *gNevoJobsPool;

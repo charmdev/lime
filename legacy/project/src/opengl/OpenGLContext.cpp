@@ -384,6 +384,9 @@ public:
    void Render(const RenderState &inState, const HardwareData &inData )
    {
 #ifdef NEVO_RENDER
+      if (inState.mClipRect != mViewport)
+         nevo::gNevoRender.flushGeometry();
+
       SetViewport(inState.mClipRect);
       if (mModelView!=*inState.mTransform.mMatrix)
       {
@@ -394,7 +397,10 @@ public:
          mLineScaleNormal = -1;
       }
       const ColorTransform *ctrans = inState.mColourTransform;
-      nevo::gNevoRender.setNodeParams((float*)mTrans,
+      /*nevo::gNevoRender.setNodeParams((float*)mTrans,
+         ctrans->redMultiplier, ctrans->greenMultiplier,
+         ctrans->blueMultiplier, ctrans->alphaMultiplier);*/
+      nevo::gNevoRender.setNodeParams2((float*)mTrans,
          ctrans->redMultiplier, ctrans->greenMultiplier,
          ctrans->blueMultiplier, ctrans->alphaMultiplier);
 #else

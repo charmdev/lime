@@ -83,6 +83,11 @@ public:
     {
         return mPtr[index];
     }
+
+    void* ptr()
+    {
+        return (void*)mPtr;
+    }
     
 private:
     int mSize;

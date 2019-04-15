@@ -39,6 +39,38 @@ private:
 
 extern MemoryPool gMemoryPool;
 
+/*class GLBuffer
+{
+public:
+    GLBuffer(int size);
+    ~GLBuffer();
+
+    int size();
+    int sizePO2();
+
+    void bind(int type);
+    void update(int type, int offset, int size, void *data);
+
+private:
+    int mSize;
+    int mSizePO2;
+    Memory *m;
+    unsigned mId;
+};
+
+class GLBufferPool
+{
+public:
+    GLBufferPool();
+    ~GLBufferPool();
+
+    GLBuffer* get(int size);
+    void refund(GLBuffer *b);
+private:
+    Vec<GLBuffer*> mAlloc;
+    Vec<Vec<GLBuffer*>*> mFree;
+};*/
+
 }
 
 #endif

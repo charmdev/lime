@@ -1,6 +1,9 @@
 #include "NevoMemory.h"
 
 #include <memory.h>
+#include "OGL.h"
+
+using namespace nme;
 
 namespace nevo
 {

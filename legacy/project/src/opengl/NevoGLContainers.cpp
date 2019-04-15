@@ -1,7 +1,6 @@
 #include "NevoGLContainers.h"
 
 #include "OGL.h"
-#include "NevoMemory.h"
 
 using namespace nme;
 

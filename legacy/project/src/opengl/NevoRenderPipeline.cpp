@@ -255,6 +255,19 @@ void NevoRenderPipeline::Init()
     mUV.reserve(cMaxVerts * 2);
     mC.reserve(cMaxVerts);
     mI.reserve(cMaxVerts);
+    mMTL.reserve(cMaxVerts * 4);
+
+    mChU.resize(cMaxCh);
+    mChTex.resize(cMaxCh);
+    mTexCh.resize(1024);
+    for (int i = 0; i < cMaxCh; ++i)
+    {
+        mChU[i] = i;
+        mChTex[i] = -1;
+    }
+    for (int i = 0; i < mTexCh.size(); ++i)
+        mTexCh[i] = -1;
+    clrMtl();
 }
 
 void NevoRenderPipeline::Clear()
@@ -291,7 +304,7 @@ void NevoRenderPipeline::setJobs(Vec<Job*> *jobs)
 
 void NevoRenderPipeline::setNodeParams(float *inTrans4x4, float r, float g, float b, float a)
 {
-    gDefaultShader->setMatrix4x4fv(gDefaultShader->mU_M, inTrans4x4);
+    /*gDefaultShader->setMatrix4x4fv(gDefaultShader->mU_M, inTrans4x4);
     gDefaultShader->setUniform4f(gDefaultShader->mU_C, b, g, r, a);
 
     for (int i = 0; i < mJobs->size(); ++i)
@@ -300,75 +313,86 @@ void NevoRenderPipeline::setNodeParams(float *inTrans4x4, float r, float g, floa
 
         if (mPrevJob ? !mPrevJob->cmpmtl(job) : true)
         {
-            flushQuads();
+            flushGeometry();
 
-            bool mtlC = false;
-            bool mtlA = false;
-            bool mtlPremultA = false;
-            bool mtlBlendAdd = job->isBlendModeAdd();
+            float mtlC = 10.0f;
+            float mtlA = 0.0f;
+            float mtlPremultA = 0.0f;
+            float mtlBlendAdd = job->isBlendModeAdd() ? 0.0f : 1.0f;
             if (job->mSurface)
             {
                 glActiveTexture(GL_TEXTURE0);
                 glBindTexture(GL_TEXTURE_2D, job->mSurface->getTextureId());
-                mtlC = true;
+                mtlC = 0.0f;
                 if (job->mSurface->getAlphaTextureId())
                 {
                     glActiveTexture(GL_TEXTURE1);
                     glBindTexture(GL_TEXTURE_2D, job->mSurface->getAlphaTextureId());
-                    mtlA = true;
+                    mtlA = 1.0f;
                 }
-                mtlPremultA = job->mSurface->alphaIsPremultiply();
+                mtlPremultA = job->mSurface->alphaIsPremultiply() ? 1.0f : 0.0f;
             }
-            gDefaultShader->setUniform4i(gDefaultShader->mU_MTL, mtlC, mtlA, mtlPremultA, mtlBlendAdd);
-
-            float aspectW = 1.0f;
-            float aspectH = 1.0f;
-            if (job->isTypeTriangles())
-            {
-                aspectW = job->mSurface ? job->mSurface->Width() / (float)job->mSurface->getTextureWidth() : 1.0f;
-                aspectH = job->mSurface ? job->mSurface->Height() / (float)job->mSurface->getTextureHeight() : 1.0f;  
-            }
-            gDefaultShader->setUniform2f(gDefaultShader->mU_TS, aspectW, aspectH);
+            gDefaultShader->setAttrib4f(gDefaultShader->mA_MTL, mtlC, mtlA, mtlPremultA, mtlBlendAdd);
         }
 
         if (job->isTypeTriangles())
         {
-            flushQuads();
+            flushGeometry();
 
-            // gDefaultShader->setAttribPointer(job->mT_XY->id(), gDefaultShader->mA_XY, 2, GL_FLOAT, GL_FALSE, 8, 0);
-            // gDefaultShader->setAttribPointer(job->mT_UV->id(), gDefaultShader->mA_UV, 2, GL_FLOAT, GL_FALSE, 8, 0);
-            // if (job->mT_C)
-            //     gDefaultShader->setAttribPointer(job->mT_C->id(), gDefaultShader->mA_C, 4, GL_UNSIGNED_BYTE, GL_TRUE, 4, 0);
-            // else
-            //     gDefaultShader->setAttrib4f(gDefaultShader->mA_C, job->b(), job->g(), job->r(), job->a());
-            // job->mT_I->draw(GL_TRIANGLES, job->mT_In, GL_UNSIGNED_SHORT, 0);
-            glBindBuffer(GL_ARRAY_BUFFER, 0);
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-            glVertexAttribPointer(gDefaultShader->mA_XY, 2, GL_FLOAT, GL_FALSE, 8, job->mT_XY->ptr());
-            glEnableVertexAttribArray(gDefaultShader->mA_XY);
-            glVertexAttribPointer(gDefaultShader->mA_UV, 2, GL_FLOAT, GL_FALSE, 8, job->mT_UV->ptr());
-            glEnableVertexAttribArray(gDefaultShader->mA_UV);
+            float Us = job->mSurface ? job->mSurface->Width() / (float)job->mSurface->getTextureWidth() : 1.0f;
+            float Vs = job->mSurface ? job->mSurface->Height() / (float)job->mSurface->getTextureHeight() : 1.0f;
+            gDefaultShader->setUniform2f(gDefaultShader->mU_UV_S, Us, Vs);
+            gDefaultShader->setAttribPointer(0, gDefaultShader->mA_XY, 2, GL_FLOAT, GL_FALSE, 8, job->mT_XY->ptr());
+            gDefaultShader->setAttribPointer(0, gDefaultShader->mA_UV, 2, GL_FLOAT, GL_FALSE, 8, job->mT_UV->ptr());
             if (job->mT_C)
-            {
-                glVertexAttribPointer(gDefaultShader->mA_C, 4, GL_UNSIGNED_BYTE, GL_TRUE, 4, job->mT_C->ptr());
-                glEnableVertexAttribArray(gDefaultShader->mA_C);
-            }
+                gDefaultShader->setAttribPointer(0, gDefaultShader->mA_C, 4, GL_UNSIGNED_BYTE, GL_TRUE, 4, job->mT_C->ptr());
             else
-            {
                 gDefaultShader->setAttrib4f(gDefaultShader->mA_C, job->b(), job->g(), job->r(), job->a());
-            }
-            glDrawElements(GL_TRIANGLES, job->mT_In, GL_UNSIGNED_SHORT, job->mT_I->ptr());
+            gDefaultShader->draw(0, GL_TRIANGLES, job->mT_In, GL_UNSIGNED_SHORT, job->mT_I->ptr());
         }
         else 
         {
             if (!pushQuad(job))
             {
-                flushQuads();
+                flushGeometry();
                 pushQuad(job);
             }
         }
     }
-    flushQuads();
+    flushGeometry();*/
+}
+
+void NevoRenderPipeline::setNodeParams2(float *inTrans4x4, float r, float g, float b, float a)
+{
+    mT00 = inTrans4x4[0]; mT01 = inTrans4x4[1];
+    mT10 = inTrans4x4[4]; mT11 = inTrans4x4[5];
+    mTTX = inTrans4x4[3]; mTTY = inTrans4x4[7];
+    mR = r; mG = g; mB = b; mA = a;
+
+    for (int i = 0; i < mJobs->size(); ++i)
+    {
+        Job *job = (*mJobs)[i];
+
+        if (!setMtl(job))
+        {
+            flushGeometry();
+            clrMtl();
+            setMtl(job);
+        }
+
+        if (job->isTypeTriangles())
+        {
+            pushTriangles(job);
+        }
+        else
+        {
+            if (!pushQuad(job))
+            {
+                flushGeometry();
+                pushQuad(job);
+            }
+        }
+    }
 }
 
 void NevoRenderPipeline::begin()
@@ -377,28 +401,38 @@ void NevoRenderPipeline::begin()
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     glBlendEquation(GL_FUNC_ADD);
 
-    glActiveTexture(GL_TEXTURE0);
-    glEnable(GL_TEXTURE_2D);
-    glActiveTexture(GL_TEXTURE1);
-    glEnable(GL_TEXTURE_2D);
+    for (int i = 0; i < cMaxCh; ++i)
+    {
+        glActiveTexture(GL_TEXTURE0 + i);
+        glEnable(GL_TEXTURE_2D);
+    }
 
     gDefaultShader->bind();
-    gDefaultShader->setUniform1i(gDefaultShader->mU_TC, 0);
-    gDefaultShader->setUniform1i(gDefaultShader->mU_TA, 1);
+    gDefaultShader->setUniform1iv(gDefaultShader->mU_T, cMaxCh, (GLint*)mChU.ptr());
 }
 
 void NevoRenderPipeline::end()
 {
+    flushGeometry();
+    clrMtl();
+
     glDisableVertexAttribArray(gDefaultShader->mA_XY);
     glDisableVertexAttribArray(gDefaultShader->mA_UV);
     glDisableVertexAttribArray(gDefaultShader->mA_C);
+    glDisableVertexAttribArray(gDefaultShader->mA_MTL);
     gDefaultShader->unbind();
 }
 
 bool NevoRenderPipeline::pushQuad(Job *job)
 {
+    static float x, y;
+    static Color c;
+
     if ((mI.size() + 6) > cMaxVerts)
         return false;
+
+    c.mBGRA = job->mBGRA;
+    c.mult(mR, mG, mB, mA);
 
     mI.inc() = mC.size() + 0;
     mI.inc() = mC.size() + 1;
@@ -408,37 +442,138 @@ bool NevoRenderPipeline::pushQuad(Job *job)
     mI.inc() = mC.size() + 0;
     for (int i = 0; i < 4; ++i)
     {
-        mXY.inc() = job->mQ_XY[i].x;
-        mXY.inc() = job->mQ_XY[i].y;
+        mult(job->mQ_XY[i].x, job->mQ_XY[i].y, mT00, mT10, mT01, mT11, mTTX, mTTY, &x, &y);
+
+        //mXY.inc() = job->mQ_XY[i].x;
+        //mXY.inc() = job->mQ_XY[i].y;
+        mXY.inc() = x;
+        mXY.inc() = y;
         mUV.inc() = job->mQ_UV[i].u;
         mUV.inc() = job->mQ_UV[i].v;
-        mC.inc() = job->mBGRA;
+        //mC.inc() = job->mBGRA;
+        mC.inc() = c.mBGRA;
+        mMTL.inc() = mMtlC;
+        mMTL.inc() = mMtlA;
+        mMTL.inc() = mMtlPremA;
+        mMTL.inc() = mMtlAddBlend;
     }
     mPrevJob = job;
 
     return true;
 }
 
-void NevoRenderPipeline::flushQuads()
+void NevoRenderPipeline::pushTriangles(Job *job)
+{
+    /*float *xy = (float*)job->mT_XY->ptr();
+    float *uv = (float*)job->mT_UV->ptr();
+    unsigned int *c = job->mT_C ? (unsigned int*)job->mT_C->ptr() : 0;
+    short *i = (short*)job->mT_I->ptr();
+    int i_n = job->mT_In;*/
+
+
+}
+
+void NevoRenderPipeline::flushGeometry()
 {
     if (mI.size() > 0)
     {
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-        glVertexAttribPointer(gDefaultShader->mA_XY, 2, GL_FLOAT, GL_FALSE, 8, &mXY[0]);
-        glEnableVertexAttribArray(gDefaultShader->mA_XY);
-        glVertexAttribPointer(gDefaultShader->mA_UV, 2, GL_FLOAT, GL_FALSE, 8, &mUV[0]);
-        glEnableVertexAttribArray(gDefaultShader->mA_UV);
-        glVertexAttribPointer(gDefaultShader->mA_C, 4, GL_UNSIGNED_BYTE, GL_TRUE, 4, &mC[0]);
-        glEnableVertexAttribArray(gDefaultShader->mA_C);
-        glDrawElements(GL_TRIANGLES, mI.size(), GL_UNSIGNED_SHORT, &mI[0]);
+        //gDefaultShader->setUniform2f(gDefaultShader->mU_UV_S, 1.0f, 1.0f);
+        gDefaultShader->setAttribPointer(0, gDefaultShader->mA_XY, 2, GL_FLOAT, GL_FALSE, 8, mXY.ptr());
+        gDefaultShader->setAttribPointer(0, gDefaultShader->mA_UV, 2, GL_FLOAT, GL_FALSE, 8, mUV.ptr());
+        gDefaultShader->setAttribPointer(0, gDefaultShader->mA_C, 4, GL_UNSIGNED_BYTE, GL_TRUE, 4, mC.ptr());
+        gDefaultShader->setAttribPointer(0, gDefaultShader->mA_MTL, 4, GL_FLOAT, GL_FALSE, 16, mMTL.ptr());
+        gDefaultShader->draw(0, GL_TRIANGLES, mI.size(), GL_UNSIGNED_SHORT, mI.ptr());
 
         mXY.resize(0);
         mUV.resize(0);
         mC.resize(0);
+        mMTL.resize(0);
         mI.resize(0);
     }
     mPrevJob = 0;
+}
+
+bool NevoRenderPipeline::setMtl(Job *job)
+{
+    if (job->mSurface)
+    {
+        int cId = job->mSurface->getTextureId();
+        if (mTexCh[cId] == -1)
+        {
+            if (mCurCh < cMaxCh)
+            {
+                glActiveTexture(GL_TEXTURE0 + mCurCh);
+                glBindTexture(GL_TEXTURE_2D, cId);
+                mMtlC = mCurCh;
+                mTexCh[cId] = mCurCh;
+                mChTex[mCurCh] = cId;
+                ++mCurCh;
+            }
+            else
+            {
+                return false;
+            }
+        }
+        else
+        {
+            mMtlC = mTexCh[cId];
+        }
+
+        int aId = job->mSurface->getAlphaTextureId();
+        if (aId != 0)
+        {
+            if (mTexCh[aId] == -1)
+            {
+                if (mCurCh < cMaxCh)
+                {
+                    glActiveTexture(GL_TEXTURE0 + mCurCh);
+                    glBindTexture(GL_TEXTURE_2D, aId);
+                    mMtlA = mCurCh;
+                    mTexCh[aId] = mCurCh;
+                    mChTex[mCurCh] = aId;
+                    ++mCurCh;
+                }
+                else 
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                mMtlA = mTexCh[aId];
+            }
+        }
+        else
+        {
+            mMtlA = cMaxCh;
+        }
+        mMtlPremA = job->mSurface->alphaIsPremultiply() ? 1.0f : 0.0f;
+    }
+    else
+    {
+        mMtlC = cMaxCh;
+        mMtlA = cMaxCh;
+        mMtlPremA = 0.0f;
+    }
+    mMtlAddBlend = job->isBlendModeAdd() ? 0.0f : 1.0f;
+    return true;
+}
+
+void NevoRenderPipeline::clrMtl()
+{
+    mCurCh = 0;
+    for (int i = 0; i < cMaxCh; ++i)
+    {
+        if (mChTex[i] != -1)
+        {
+            mTexCh[mChTex[i]] = -1;
+        }
+        mChTex[i] = -1;
+    }
+    mMtlC = cMaxCh;
+    mMtlA = cMaxCh;
+    mMtlPremA = 0.0f;
+    mMtlAddBlend = 1.0f;
 }
 
 }

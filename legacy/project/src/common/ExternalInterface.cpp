@@ -2720,7 +2720,6 @@ DEFINE_PRIM_MULT(nme_gfx_draw_round_rect);
 
 value nme_gfx_draw_triangles(value *arg, int args )
 {
-
    enum { aGfx, aVertices, aIndices, aUVData, aCull, aColours, aBlend };
    
    Graphics *gfx;

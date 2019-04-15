@@ -72,10 +72,10 @@ void GPUProgram::setMatrix4x4fv(GLuint loc, const GLfloat *v)
     glUniformMatrix4fv(loc, 1, 0, v);
 }
 
-void GPUProgram::setAttribPointer(GLuint vbo, GLuint attrib, GLint size, GLenum type, GLboolean normalized, GLsizei stride, GLsizei offset)
+void GPUProgram::setAttribPointer(GLuint bufId, GLuint attrib, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void *ptr)
 {
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glVertexAttribPointer(attrib, size, type, normalized, stride, (const void*)offset);
+    glBindBuffer(GL_ARRAY_BUFFER, bufId);
+    glVertexAttribPointer(attrib, size, type, normalized, stride, ptr);
     glEnableVertexAttribArray(attrib);
 }
 
@@ -83,6 +83,18 @@ void GPUProgram::setAttrib4f(GLuint attrib, GLfloat v0, GLfloat v1, GLfloat v2, 
 {
     glDisableVertexAttribArray(attrib);
     glVertexAttrib4f(attrib, v0, v1, v2, v3);
+}
+
+void GPUProgram::setAttrib1f(GLuint attrib, GLfloat v0)
+{
+    glDisableVertexAttribArray(attrib);
+    glVertexAttrib1f(attrib, v0);
+}
+
+void GPUProgram::draw(GLuint bufId, GLenum mode, GLsizei count, GLenum type, const void *indices)
+{
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bufId);
+    glDrawElements(mode, count, type, indices);
 }
 
 void GPUProgram::createProgram(std::vector<std::string> attribs)
@@ -156,26 +168,30 @@ GLuint GPUProgram::getAttribLoc(const char *attribName)
 //DefaultShader
 DefaultShader::DefaultShader()
 {
+/*    
 #ifdef NME_GLES
 	mVertSrc += "precision highp float;";
 #endif
     mVertSrc += "                                                   \
         uniform mat4 u_m;                                           \
-        uniform vec2 u_ts;                                          \
         uniform vec4 u_c;                                           \
+        uniform vec2 u_uv_s;                                        \
                                                                     \
         attribute vec2 a_xy;                                        \
         attribute vec2 a_uv;                                        \
         attribute vec4 a_c;                                         \
+        attribute vec4 a_mtl;                                       \
                                                                     \
         varying vec2 v_uv;                                          \
         varying vec4 v_c;                                           \
+        varying vec4 v_mtl;                                         \
                                                                     \
         void main()                                                 \
         {                                                           \
-            v_uv = a_uv * u_ts;                                     \
+            v_uv = a_uv * u_uv_s;                                   \
             v_c = u_c.bgra * a_c.bgra;                              \
-            gl_Position = vec4(a_xy, 0.0, 1.0) * u_m;               \
+            v_mtl = a_mtl;                                          \
+            gl_Position = vec4(a_xy, 0.0f, 1.0f) * u_m;             \
         }                                                           \
     ";
 
@@ -183,26 +199,99 @@ DefaultShader::DefaultShader()
 	mFragSrc += "precision mediump float;";
 #endif
     mFragSrc += "                                                   \
-        uniform sampler2D u_tC;                                     \
-        uniform sampler2D u_tA;                                     \
-        uniform ivec4 u_mtl;                                        \
+        uniform sampler2D u_t[8];                                   \
                                                                     \
         varying vec2 v_uv;                                          \
         varying vec4 v_c;                                           \
+        varying vec4 v_mtl;                                         \
+                                                                    \
+        void main()                                                 \
+        {                                                           \
+            vec4 texel = vec4(1.0f, 1.0f, 1.0f, 1.0f);              \
+            if (v_mtl[0] == 0.0f) texel = texture2D(u_t[0], v_uv);  \
+            if (v_mtl[0] == 1.0f) texel = texture2D(u_t[1], v_uv);  \
+            if (v_mtl[0] == 2.0f) texel = texture2D(u_t[2], v_uv);  \
+            if (v_mtl[0] == 3.0f) texel = texture2D(u_t[3], v_uv);  \
+            if (v_mtl[0] == 4.0f) texel = texture2D(u_t[4], v_uv);  \
+            if (v_mtl[0] == 5.0f) texel = texture2D(u_t[5], v_uv);  \
+            if (v_mtl[0] == 6.0f) texel = texture2D(u_t[6], v_uv);  \
+            if (v_mtl[0] == 7.0f) texel = texture2D(u_t[7], v_uv);  \
+                                                                    \
+            if (v_mtl[1] == 0.0f) texel.a = texture2D(u_t[0], v_uv).r;\
+            if (v_mtl[1] == 1.0f) texel.a = texture2D(u_t[1], v_uv).r;\
+            if (v_mtl[1] == 2.0f) texel.a = texture2D(u_t[2], v_uv).r;\
+            if (v_mtl[1] == 3.0f) texel.a = texture2D(u_t[3], v_uv).r;\
+            if (v_mtl[1] == 4.0f) texel.a = texture2D(u_t[4], v_uv).r;\
+            if (v_mtl[1] == 5.0f) texel.a = texture2D(u_t[5], v_uv).r;\
+            if (v_mtl[1] == 6.0f) texel.a = texture2D(u_t[6], v_uv).r;\
+            if (v_mtl[1] == 7.0f) texel.a = texture2D(u_t[7], v_uv).r;\
+                                                                    \
+            texel.rgb *= mix(1.0f, 1.0f / texel.a, v_mtl[2]);       \
+            texel *= v_c;                                           \
+            texel.rgb *= texel.a;                                   \
+            texel.a *= v_mtl[3];                                    \
+            gl_FragColor = texel;                                   \
+        }                                                           \
+    ";
+*/
+
+#ifdef NME_GLES
+	mVertSrc += "precision highp float;";
+#endif
+    mVertSrc += "                                                   \
+        attribute vec2 a_xy;                                        \
+        attribute vec2 a_uv;                                        \
+        attribute vec4 a_c;                                         \
+        attribute vec4 a_mtl;                                       \
+                                                                    \
+        varying vec2 v_uv;                                          \
+        varying vec4 v_c;                                           \
+        varying vec4 v_mtl;                                         \
+                                                                    \
+        void main()                                                 \
+        {                                                           \
+            v_uv = a_uv;                                            \
+            v_c = a_c.bgra;                                         \
+            v_mtl = a_mtl;                                          \
+            gl_Position = vec4(a_xy, 0.0, 1.0);                     \
+        }                                                           \
+    ";
+
+#ifdef NME_GLES
+	mFragSrc += "precision mediump float;";
+#endif
+    mFragSrc += "                                                   \
+        uniform sampler2D u_t[8];                                   \
+                                                                    \
+        varying vec2 v_uv;                                          \
+        varying vec4 v_c;                                           \
+        varying vec4 v_mtl;                                         \
                                                                     \
         void main()                                                 \
         {                                                           \
             vec4 texel = vec4(1.0, 1.0, 1.0, 1.0);                  \
-            if (u_mtl[0] != 0)                                      \
-            {                                                       \
-                texel = texture2D(u_tC, v_uv);                      \
-                if (u_mtl[1] != 0)                                  \
-                    texel.a = texture2D(u_tA, v_uv).r;              \
-                if (u_mtl[2] != 0) texel.rgb /= texel.a;            \
-            }                                                       \
+            if (v_mtl[0] == 0.0) texel = texture2D(u_t[0], v_uv);  \
+            if (v_mtl[0] == 1.0) texel = texture2D(u_t[1], v_uv);  \
+            if (v_mtl[0] == 2.0) texel = texture2D(u_t[2], v_uv);  \
+            if (v_mtl[0] == 3.0) texel = texture2D(u_t[3], v_uv);  \
+            if (v_mtl[0] == 4.0) texel = texture2D(u_t[4], v_uv);  \
+            if (v_mtl[0] == 5.0) texel = texture2D(u_t[5], v_uv);  \
+            if (v_mtl[0] == 6.0) texel = texture2D(u_t[6], v_uv);  \
+            if (v_mtl[0] == 7.0) texel = texture2D(u_t[7], v_uv);  \
+                                                                    \
+            if (v_mtl[1] == 0.0) texel.a = texture2D(u_t[0], v_uv).r;\
+            if (v_mtl[1] == 1.0) texel.a = texture2D(u_t[1], v_uv).r;\
+            if (v_mtl[1] == 2.0) texel.a = texture2D(u_t[2], v_uv).r;\
+            if (v_mtl[1] == 3.0) texel.a = texture2D(u_t[3], v_uv).r;\
+            if (v_mtl[1] == 4.0) texel.a = texture2D(u_t[4], v_uv).r;\
+            if (v_mtl[1] == 5.0) texel.a = texture2D(u_t[5], v_uv).r;\
+            if (v_mtl[1] == 6.0) texel.a = texture2D(u_t[6], v_uv).r;\
+            if (v_mtl[1] == 7.0) texel.a = texture2D(u_t[7], v_uv).r;\
+                                                                    \
+            texel.rgb *= mix(1.0, 1.0 / texel.a, v_mtl[2]);       \
             texel *= v_c;                                           \
             texel.rgb *= texel.a;                                   \
-            if (u_mtl[3] != 0) texel.a = 0.0;                       \
+            texel.a *= v_mtl[3];                                    \
             gl_FragColor = texel;                                   \
         }                                                           \
     ";
@@ -211,17 +300,23 @@ DefaultShader::DefaultShader()
     attribs.push_back("a_xy");
     attribs.push_back("a_uv");
     attribs.push_back("a_c");
+    attribs.push_back("a_mtl");
     createProgram(attribs);
+
+    // mA_XY = getAttribLoc("a_xy");
+    // mA_UV = getAttribLoc("a_uv");
+    // mA_C = getAttribLoc("a_c");
+    // mA_MTL = getAttribLoc("a_mtl");
+    // mU_M = getUniformLoc("u_m");
+    // mU_C = getUniformLoc("u_c");
+    // mU_UV_S = getUniformLoc("u_uv_s");
+    // mU_T = getUniformLoc("u_t");
 
     mA_XY = getAttribLoc("a_xy");
     mA_UV = getAttribLoc("a_uv");
     mA_C = getAttribLoc("a_c");
-    mU_M = getUniformLoc("u_m");
-    mU_TC = getUniformLoc("u_tC");
-    mU_TA = getUniformLoc("u_tA");
-    mU_TS = getUniformLoc("u_ts");
-    mU_C = getUniformLoc("u_c");
-    mU_MTL = getUniformLoc("u_mtl");
+    mA_MTL = getAttribLoc("a_mtl");
+    mU_T = getUniformLoc("u_t");
 }
 
 }
