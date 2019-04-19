@@ -17,14 +17,103 @@ class VBO;
 class EBO;
 class Memory;
 
-class Job
+struct Color
 {
-public:
-    Job();
-    ~Job();
+    Color() {}
+
+    float r() { return mR / 255.0f; }
+    float g() { return mG / 255.0f; }
+    float b() { return mB / 255.0f; }
+    float a() { return mA / 255.0f; }
+
+    void set(float nR, float nG, float nB, float nA)
+    {
+        mR = (unsigned char)(nR * 255.0f);
+        mG = (unsigned char)(nG * 255.0f);
+        mB = (unsigned char)(nB * 255.0f);
+        mA = (unsigned char)(nA * 255.0f);
+    }
+
+    void set(unsigned int bgr, float nA)
+    {
+        mBGRA = bgr;
+        mA = (unsigned char)(nA * 255.0f);
+    }
+
+    void set(float *inRGBA)
+    {
+        if (inRGBA)
+            set(inRGBA[0], inRGBA[1], inRGBA[2], inRGBA[3]);
+        else
+            mBGRA = 0xFFFFFFFF;
+    }
+
+    void mult(float nR, float nG, float nB, float nA)
+    {
+        mR = (unsigned char)(r() * nR * 255.0f);
+        mG = (unsigned char)(g() * nG * 255.0f);
+        mB = (unsigned char)(b() * nB * 255.0f);
+        mA = (unsigned char)(a() * nA * 255.0f);
+    }
+
+    bool isTransparent() { return (mA < 10); }
+
+    union
+    {
+        unsigned int mBGRA;
+        struct { unsigned char mB, mG, mR, mA; };
+    };
+};
+
+struct Material
+{
+    enum BlendType { BlendType_NORMAL, BlendType_ADD };
+
+    Material();
+
+    void set(nme::Surface *surface, Color color, int blendMode);
+    float getBlendFactor();
+    bool isTransparent() { return mColor.isTransparent(); }
+    bool hasTexture();
+    bool hasAlphaTexture();
+    bool alphaIsPremultiply();
+    int getTextureId();
+    int getAlphaTextureId();
+    int getTextureWidth();
+    int getTextureHeight();
+    int getHardwareTextureWidth();
+    int getHardwareTextureHeight();
+    float getWidthRatio();
+    float getHeightRatio();
+
+    void clear();
+
+    inline bool operator==(const Material &rhs)
+    {
+        return (mSurface ==  rhs.mSurface) && (mBlend == rhs.mBlend);
+    }
+    inline bool operator!=(const Material &rhs) { return !(*this == rhs); }
+
+    nme::Surface *mSurface;
+    Color mColor;
+    BlendType mBlend;    
+};
+
+struct Job
+{
+    enum JobType { JobType_NONE, JobType_RECT, JobType_TILE, JobType_TRIANGLES };
+
+    Job::Job()
+    {
+        mT_XY = 0; mT_UV = 0; mT_C = 0; mT_I = 0; mT_In = 0;
+        mType = JobType_NONE;
+    }
+
+    Job::~Job()
+    {
+        clear();
+    }
     
-    void mtl(nme::Surface *surface, unsigned int color, int blendMode);
-    bool cmpmtl(Job *job);
     void rect(float x, float y, float width, float height);
     void tile(float x, float y, int rectX, int rectY, int rectW, int rectH, float *inTrans);
     void triangles(int inXYs_n, float *inXYs,
@@ -33,33 +122,12 @@ public:
     bool hitTest(float x, float y);
     void clear();
 
-    void setTypeRect() { mFlags |= 1; }
-    void setTypeTile() { mFlags |= 2; }
-    void setTypeTriangles() { mFlags |= 4; }
-    bool isTypeRect() { return mFlags & 1; }
-    bool isTypeTile() { return mFlags & 2; }
-    bool isTypeTriangles() { return mFlags & 4; }
+    bool isTypeRect() { return (mType == JobType_RECT); }
+    bool isTypeTile() { return (mType == JobType_TILE); }
+    bool isTypeTriangles() { return (mType == JobType_TRIANGLES); }
 
-    void setBlendModeNone() { mFlags |= 8; }
-    void setBlendModeNormal() { mFlags |= 16; }
-    void setBlendModeAdd() { mFlags |= 32; }
-    bool isBlendModeNone() { return mFlags & 8; }
-    bool isBlendModeNormal() { return mFlags & 16; }
-    bool isBlendModeAdd() { return mFlags & 32; }
-    unsigned char getBlendMode() { return mFlags & 56; }
-
-    float r() { return mR / 255.0f; }
-    float g() { return mG / 255.0f; }
-    float b() { return mB / 255.0f; }
-    float a() { return mA / 255.0f; }
-
-public:
-    nme::Surface *mSurface;
-    union {
-        unsigned int mBGRA;
-        struct { unsigned char mB, mG, mR, mA; };
-    };
-    unsigned char mFlags;
+    Material mMtl;
+    JobType mType;
 
     union
     {
@@ -117,14 +185,13 @@ public:
     void Clear();
 
     void setJobs(Vec<Job*> *jobs);
-    void setNodeParams(float *inTrans4x4, float r, float g, float b, float a);
+    void setNodeParams(float *inTrans4x4, Color color);
     void begin();
     void end();
 
 private:
     bool pushQuad(Job *job);
-    void flushQuads();
-    Job *mPrevJob;
+    void flushGeometry();
 
     Vec<Job*> *mJobs;
 

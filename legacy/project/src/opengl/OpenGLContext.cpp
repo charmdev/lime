@@ -394,9 +394,9 @@ public:
          mLineScaleNormal = -1;
       }
       const ColorTransform *ctrans = inState.mColourTransform;
-      nevo::gNevoRender.setNodeParams((float*)mTrans,
-         ctrans->redMultiplier, ctrans->greenMultiplier,
-         ctrans->blueMultiplier, ctrans->alphaMultiplier);
+      nevo::Color color;
+      color.set(ctrans->redMultiplier, ctrans->greenMultiplier, ctrans->blueMultiplier, ctrans->alphaMultiplier);
+      nevo::gNevoRender.setNodeParams((float*)mTrans, color);
 #else
       if (!inData.mArray.size())
          return;

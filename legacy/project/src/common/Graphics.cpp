@@ -29,7 +29,7 @@ Graphics::Graphics(DisplayObject *inOwner,bool inInitRef) : Object(inInitRef)
 #ifdef NEVO_RENDER
    mTileTexture = 0;
    mFillTexture = 0;
-   mFillBGRA = 0xFFFFFFFF;
+   mFillBGRA.mBGRA = 0xFFFFFFFF;
    mTileBlendMode = bmNormal;
 #endif
 }
@@ -53,7 +53,7 @@ void Graphics::clear()
    if (mFillTexture) mFillTexture->DecRef();
    mTileTexture = 0;
    mFillTexture = 0;
-   mFillBGRA = 0xFFFFFFFF;
+   mFillBGRA.mBGRA = 0xFFFFFFFF;
    mTileBlendMode = bmNormal;
 #else
    mFillJob.clear();
@@ -130,7 +130,7 @@ void Graphics::drawRect(float x, float y, float width, float height)
 {
 #ifdef NEVO_RENDER
    nevo::Job *job = mNevoJobs.inc() = nevo::gNevoJobsPool->get();
-   job->mtl(mFillTexture, mFillBGRA, mOwner->getBlendMode());
+   job->mMtl.set(mFillTexture, mFillBGRA, mOwner->getBlendMode());
    job->rect(x, y, width, height);
 #else
    Flush();
@@ -262,7 +262,7 @@ void Graphics::drawGraphicsDatum(IGraphicsData *inData)
             mFillTexture = bf->bitmapData;
             if (mFillTexture) mFillTexture->IncRef();
             if (mFillTexture) mFillTexture->GetTexture(nme::HardwareRenderer::current)->BindFlags(bf->repeat, bf->smooth);
-            mFillBGRA = 0xFFFFFFFF;
+            mFillBGRA.mBGRA = 0xFFFFFFFF;
          }
          break;
 
@@ -271,7 +271,7 @@ void Graphics::drawGraphicsDatum(IGraphicsData *inData)
             GraphicsSolidFill *sf = inData->AsSolidFill();
             if (mFillTexture) mFillTexture->DecRef();
             mFillTexture = 0;
-            mFillBGRA = sf->mRGB.ival;
+            mFillBGRA.mBGRA = sf->mRGB.ival;
          }
          break;
    }
@@ -350,8 +350,7 @@ void Graphics::beginFill(unsigned int color, float alpha)
 #ifdef NEVO_RENDER
    if (mFillTexture) mFillTexture->DecRef();
    mFillTexture = 0;
-   mFillBGRA = color;
-   mFillBGRA |= ((unsigned int)(255 * alpha) << 24);
+   mFillBGRA.set(color, alpha);
 #else
    Flush(false,true,true);
    endTiles();
@@ -384,7 +383,7 @@ void Graphics::beginBitmapFill(Surface *bitmapData, const Matrix &inMatrix,
    mFillTexture = bitmapData;
    if (mFillTexture) mFillTexture->IncRef();
    if (mFillTexture) mFillTexture->GetTexture(nme::HardwareRenderer::current)->BindFlags(inRepeat, inSmooth);
-   mFillBGRA = 0xFFFFFFFF;
+   mFillBGRA.mBGRA = 0xFFFFFFFF;
 #else
    Flush(false,true,true);
    endTiles();
@@ -514,16 +513,10 @@ void Graphics::arcTo(float cx, float cy, float x, float y)
 void Graphics::tile(float x, float y, const Rect &inTileRect,float *inTrans,float *inRGBA)
 {
 #ifdef NEVO_RENDER
+   static nevo::Color color;
    nevo::Job *job = mNevoJobs.inc() = nevo::gNevoJobsPool->get();
-   unsigned int bgra = 0xFFFFFFFF;
-   if (inRGBA)
-   {
-      bgra = (unsigned int)(255 * inRGBA[2]);
-      bgra |= ((unsigned int)(255 * inRGBA[1]) << 8);
-      bgra |= ((unsigned int)(255 * inRGBA[0]) << 16);
-      bgra |= ((unsigned int)(255 * inRGBA[3]) << 24);
-   }
-   job->mtl(mTileTexture, bgra, mTileBlendMode);
+   color.set(inRGBA);
+   job->mMtl.set(mTileTexture, color, mTileBlendMode);
    job->tile(x, y, inTileRect.x, inTileRect.y, inTileRect.w, inTileRect.h, inTrans);
 #else
    mPathData->tile(x,y,inTileRect,inTrans,inRGBA);
@@ -599,7 +592,7 @@ void Graphics::drawTrianglesNevo(int inXYs_n, float *inXYs,
             int inColours_n, int *inColours, int inCull, int blendMode)
 {
    nevo::Job *job = mNevoJobs.inc() = nevo::gNevoJobsPool->get();
-   job->mtl(mFillTexture, mFillBGRA, blendMode);
+   job->mMtl.set(mFillTexture, mFillBGRA, blendMode);
    job->triangles(inXYs_n, inXYs,
       inIndixes_n, inIndixes, inUVT_n, inUVT,
       inColours_n, inColours);

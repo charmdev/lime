@@ -669,7 +669,7 @@ private:
    Surface                   *mTileTexture;
    int                       mTileBlendMode;
    Surface                   *mFillTexture;
-   unsigned int              mFillBGRA;
+   nevo::Color               mFillBGRA;
    nevo::Vec<nevo::Job*>     mNevoJobs;
 #endif
 
