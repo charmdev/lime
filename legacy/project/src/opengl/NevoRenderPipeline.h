@@ -103,13 +103,13 @@ struct Job
 {
     enum JobType { JobType_NONE, JobType_RECT, JobType_TILE, JobType_TRIANGLES };
 
-    Job::Job()
+    Job()
     {
         mT_XY = 0; mT_UV = 0; mT_C = 0; mT_I = 0; mT_In = 0;
         mType = JobType_NONE;
     }
 
-    Job::~Job()
+    ~Job()
     {
         clear();
     }
