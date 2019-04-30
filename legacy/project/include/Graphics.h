@@ -666,11 +666,52 @@ private:
    void BuiltExtent0(double inRotation);
 
 #ifdef NEVO_RENDER
-   Surface                   *mTileTexture;
-   int                       mTileBlendMode;
-   Surface                   *mFillTexture;
-   nevo::Color               mFillBGRA;
+   nevo::Material            mNevoTileMtl;
+   nevo::Material            mNevoFillMtl;
+   nevo::Vec<nevo::Job*>     mAllocNevoJobs;
    nevo::Vec<nevo::Job*>     mNevoJobs;
+   nevo::Vec<float>          mNevoXY;
+   nevo::Vec<float>          mNevoUV;
+   nevo::Vec<int>            mNevoC;
+   
+   bool startNewBatch(nevo::Material &mtl)
+   {
+      if ((mNevoJobs.size() == 0) ? true : (mNevoJobs.last()->mMtl != mtl))
+      {
+         mNevoJobs.inc();
+         if (mNevoJobs.size() > mAllocNevoJobs.size())
+            mNevoJobs.last() = mAllocNevoJobs.inc() = new nevo::Job();
+         mNevoJobs.last()->mMtl = mtl;
+         mNevoJobs.last()->mVcount = 0;
+         mNevoJobs.last()->mVfirst = (mNevoJobs.size() > 1) ? (mNevoJobs.prev()->mVfirst + mNevoJobs.prev()->mVcount) : 0;
+         return true;
+      }
+      return false;
+   }
+
+   void pushVertex(float x, float y, float u, float v, unsigned int bgra)
+   {
+      mNevoXY.inc() = x; mNevoXY.inc() = y;
+      mNevoUV.inc() = u; mNevoUV.inc() = v;
+      mNevoC.inc() = bgra;
+      mNevoJobs.last()->calcBB(x, y);
+      ++mNevoJobs.last()->mVcount;
+   }
+
+   void mult(float x, float y, float *m, float tx, float ty, float &_x, float &_y)
+   {
+      _x = m ? x * m[0] + y * m[2] + tx : x + tx;
+      _y = m ? x * m[1] + y * m[3] + ty : y + ty;
+   }
+
+   bool pointInTriangle(float x, float y, float x1, float y1, float x2, float y2, float x3, float y3)
+   {
+      static float a1, a2, a3;
+      a1 = (x1 - x) * (y2 - y1) - (x2 - x1) * (y1 - y);
+      a2 = (x2 - x) * (y3 - y2) - (x3 - x2) * (y2 - y);
+      a3 = (x3 - x) * (y1 - y3) - (x1 - x3) * (y3 - y);
+      return (((a1 >= 0) && (a2 >= 0) && (a3 >= 0)) || ((a1 <= 0) && (a2 <= 0) && (a3 <= 0)));
+   }
 #endif
 
 private:

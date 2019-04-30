@@ -396,7 +396,7 @@ public:
       const ColorTransform *ctrans = inState.mColourTransform;
       nevo::Color color;
       color.set(ctrans->redMultiplier, ctrans->greenMultiplier, ctrans->blueMultiplier, ctrans->alphaMultiplier);
-      nevo::gNevoRender.setNodeParams((float*)mTrans, color);
+      nevo::gNevoRender.drawGraphicsData((float*)mTrans, color);
 #else
       if (!inData.mArray.size())
          return;
