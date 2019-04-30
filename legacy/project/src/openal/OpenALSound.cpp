@@ -321,6 +321,7 @@ namespace nme
          }
          else
          {
+			release(); //* Release the OpenAL source on completion
             return true;
          }
          //LOG_SOUND("OpenALChannel isComplete() returning true");
@@ -443,6 +444,7 @@ namespace nme
          if (state == AL_PLAYING)
          {
             alSourceStop(mSourceID);
+			release(); //* Release the OpenAL source on stop
          }
       }
    }
@@ -497,6 +499,12 @@ namespace nme
       }
    }
    
+   void OpenALChannel::release()
+   {
+      if (mSourceID)
+         alDeleteSources(1, &mSourceID);
+      mSourceID = 0;
+   }
    
    SoundChannel *SoundChannel::Create(const ByteArray &inBytes,const SoundTransform &inTransform)
    {

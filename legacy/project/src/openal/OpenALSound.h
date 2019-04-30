@@ -207,6 +207,7 @@ class OpenALChannel;
          void stop();
          void suspend();
          void resume();
+		 void release(); //* Release OpenAL source
          
       protected:
          ~OpenALChannel();
