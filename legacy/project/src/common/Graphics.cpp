@@ -46,6 +46,7 @@ void Graphics::clear()
    for (int i = 0; i < mNevoJobs.size(); ++i)
       mNevoJobs[i]->clear();
    mNevoJobs.resize(0);
+   mClickArea.resize(0);
    mNevoXY.resize(0);
    mNevoUV.resize(0);
    mNevoC.resize(0);
@@ -127,8 +128,8 @@ void Graphics::drawRect(float x, float y, float width, float height)
 #ifdef NEVO_RENDER
    static float tW, tH;
    mNevoFillMtl.setBlendMode(mOwner->getBlendMode());
-   if (startNewBatch(mNevoFillMtl))
-      mNevoJobs.last()->initBB(x, y);
+   startNewBatch(mNevoFillMtl);
+   mClickArea.inc().initBB(x, y);
    tW = mNevoFillMtl.getHardwareTextureWidth();
    tH = mNevoFillMtl.getHardwareTextureHeight();
    pushVertex(x, y, x / tW, y / tH, mNevoFillMtl.mColor.mBGRA);
@@ -520,8 +521,8 @@ void Graphics::tile(float x, float y, const Rect &inTileRect,float *inTrans,floa
    mult(inTileRect.w, inTileRect.h, inTrans, x, y, v[2].x, v[2].y);
    mult(0.0f, inTileRect.h, inTrans, x, y, v[3].x, v[3].y);
    mNevoTileMtl.mColor.set(inRGBA);
-   if (startNewBatch(mNevoTileMtl))
-      mNevoJobs.last()->initBB(v[0].x, v[0].y);
+   startNewBatch(mNevoTileMtl);
+   mClickArea.inc().initBB(v[0].x, v[0].y);
    tW = mNevoTileMtl.getHardwareTextureWidth();
    tH = mNevoTileMtl.getHardwareTextureHeight();
    t[0].u = inTileRect.x / tW; t[0].v = inTileRect.y / tH;
@@ -611,8 +612,8 @@ void Graphics::drawTrianglesNevo(int inXYs_n, float *inXYs,
    static float tWs, tHs;
    static int numTriangles;
    mNevoFillMtl.setBlendMode(blendMode);
-   if (startNewBatch(mNevoFillMtl))
-      mNevoJobs.last()->initBB(inXYs[0], inXYs[1]);
+   startNewBatch(mNevoFillMtl);
+   mClickArea.inc().initBB(inXYs[0], inXYs[1]);
    tWs = mNevoFillMtl.getWidthRatio();
    tHs = mNevoFillMtl.getHeightRatio();
    numTriangles = inIndixes_n / 3;
@@ -733,16 +734,16 @@ Extent2DF Graphics::GetSoftwareExtent(const Transform &inTransform, bool inInclu
    Extent2DF result;
 
    m = inTransform.mMatrix;
-   for (i = 0; i < mNevoJobs.size(); ++i)
+   for (i = 0; i < mClickArea.size(); ++i)
    {
-      nevo::Job *job = mNevoJobs[i];
-      x = job->mBBminX; y = job->mBBminY;
+      nevo::BB &area = mClickArea[i];
+      x = area.mBBminX; y = area.mBBminY;
       result.Add(m->m00 * x + m->m01 * y + m->mtx, m->m10 * x + m->m11 * y + m->mty);
-      x = job->mBBmaxX; y = job->mBBminY;
+      x = area.mBBmaxX; y = area.mBBminY;
       result.Add(m->m00 * x + m->m01 * y + m->mtx, m->m10 * x + m->m11 * y + m->mty);
-      x = job->mBBmaxX; y = job->mBBmaxY;
+      x = area.mBBmaxX; y = area.mBBmaxY;
       result.Add(m->m00 * x + m->m01 * y + m->mtx, m->m10 * x + m->m11 * y + m->mty);
-      x = job->mBBminX; y = job->mBBmaxY;
+      x = area.mBBminX; y = area.mBBmaxY;
       result.Add(m->m00 * x + m->m01 * y + m->mtx, m->m10 * x + m->m11 * y + m->mty);
    }
 
@@ -792,9 +793,9 @@ bool Graphics::Render( const RenderTarget &inTarget, const RenderState &inState 
             return false;
          UserPoint screen(inState.mClipRect.x, inState.mClipRect.y);
          UserPoint pos = inState.mTransform.mMatrix->ApplyInverse(screen);
-         for (int i = 0; i < mNevoJobs.size(); ++i)
+         for (int i = 0; i < mClickArea.size(); ++i)
          {
-            if (mNevoJobs[i]->hitTest(pos.x, pos.y))
+            if (mClickArea[i].hitTest(pos.x, pos.y))
                return true;
          }
          return false;

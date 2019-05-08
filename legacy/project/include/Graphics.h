@@ -670,6 +670,7 @@ private:
    nevo::Material            mNevoFillMtl;
    nevo::Vec<nevo::Job*>     mAllocNevoJobs;
    nevo::Vec<nevo::Job*>     mNevoJobs;
+   nevo::Vec<nevo::BB>       mClickArea;
    nevo::Vec<float>          mNevoXY;
    nevo::Vec<float>          mNevoUV;
    nevo::Vec<int>            mNevoC;
@@ -694,7 +695,7 @@ private:
       mNevoXY.inc() = x; mNevoXY.inc() = y;
       mNevoUV.inc() = u; mNevoUV.inc() = v;
       mNevoC.inc() = bgra;
-      mNevoJobs.last()->calcBB(x, y);
+      mClickArea.last().calcBB(x, y);
       ++mNevoJobs.last()->mVcount;
    }
 

@@ -109,7 +109,20 @@ struct Material
 struct Job
 {
     Job() {}
-    
+
+    void clear()
+    {
+        mMtl.clear();
+    }
+
+    Material mMtl;
+    int mVfirst, mVcount;
+};
+
+struct BB
+{
+    BB() {}
+
     bool hitTest(float x, float y)
     {
         return (mBBminX <= x) && (mBBminY <= y) && (mBBmaxX >= x) && (mBBmaxY >= y);
@@ -129,14 +142,7 @@ struct Job
         if (y > mBBmaxY) mBBmaxY = y;
     }
 
-    void clear()
-    {
-        mMtl.clear();
-    }
-
-    Material mMtl;
     float mBBminX, mBBminY, mBBmaxX, mBBmaxY;
-    int mVfirst, mVcount;
 };
 
 class NevoRenderPipeline

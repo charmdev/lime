@@ -159,7 +159,7 @@ void NevoRenderPipeline::setGraphicsData(Vec<Job*> *jobs, Vec<float> *xy, Vec<fl
 void NevoRenderPipeline::drawGraphicsData(float *inTrans4x4, Color color)
 {
     if (color.isTransparent())
-        return;
+       return;
 
     bool refreshOnceParams = true;
 
