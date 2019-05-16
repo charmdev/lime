@@ -24,16 +24,16 @@ struct Color
 
     void set(float nR, float nG, float nB, float nA)
     {
-        mR = (unsigned char)(nR * 255.0f);
-        mG = (unsigned char)(nG * 255.0f);
-        mB = (unsigned char)(nB * 255.0f);
-        mA = (unsigned char)(nA * 255.0f);
+        mR = (unsigned char)((nR > 1.0f ? 1.0f : nR < 0.0f ? 0.0f : nR) * 255.0f);
+        mG = (unsigned char)((nG > 1.0f ? 1.0f : nG < 0.0f ? 0.0f : nG) * 255.0f);
+        mB = (unsigned char)((nB > 1.0f ? 1.0f : nB < 0.0f ? 0.0f : nB) * 255.0f);
+        mA = (unsigned char)((nA > 1.0f ? 1.0f : nA < 0.0f ? 0.0f : nA) * 255.0f);
     }
 
     void set(unsigned int bgr, float nA)
     {
         mBGRA = bgr;
-        mA = (unsigned char)(nA * 255.0f);
+        mA = (unsigned char)((nA > 1.0f ? 1.0f : nA < 0.0f ? 0.0f : nA) * 255.0f);
     }
 
     void set(float *inRGBA)
@@ -46,10 +46,10 @@ struct Color
 
     void mult(float nR, float nG, float nB, float nA)
     {
-        mR = (unsigned char)(r() * nR * 255.0f);
-        mG = (unsigned char)(g() * nG * 255.0f);
-        mB = (unsigned char)(b() * nB * 255.0f);
-        mA = (unsigned char)(a() * nA * 255.0f);
+        mR = (unsigned char)(r() * (nR > 1.0f ? 1.0f : nR < 0.0f ? 0.0f : nR) * 255.0f);
+        mG = (unsigned char)(g() * (nG > 1.0f ? 1.0f : nG < 0.0f ? 0.0f : nG) * 255.0f);
+        mB = (unsigned char)(b() * (nB > 1.0f ? 1.0f : nB < 0.0f ? 0.0f : nB) * 255.0f);
+        mA = (unsigned char)(a() * (nA > 1.0f ? 1.0f : nA < 0.0f ? 0.0f : nA) * 255.0f);
     }
 
     bool isTransparent() { return (mA < 10); }
@@ -145,6 +145,21 @@ struct BB
     float mBBminX, mBBminY, mBBmaxX, mBBmaxY;
 };
 
+class VBO
+{
+public:
+    VBO(int size);
+    ~VBO();
+
+    int size();
+    unsigned id();
+    void update(int offset, int size, void *data);
+
+private:
+    int mSize;
+    unsigned mVBO;
+};
+
 class NevoRenderPipeline
 {
 public:
@@ -154,8 +169,8 @@ public:
     void Init();
     void Clear();
 
-    void setGraphicsData(Vec<Job*> *jobs, Vec<float> *xy, Vec<float> *uv, Vec<int> *c);
-    void drawGraphicsData(float *inTrans4x4, Color color);
+    void setGraphicsData(Vec<Job*> *jobs, Vec<float> *xy, Vec<float> *uv, Vec<int> *c, VBO *xy_vbo, VBO *uv_vbo, VBO *c_vbo);
+    void drawGraphicsData(float *inTrans4x4, Color *color);
     void begin();
     void end();
 
@@ -164,6 +179,9 @@ private:
     Vec<float> *mXY;
     Vec<float> *mUV;
     Vec<int> *mC;
+    VBO *mXY_vbo;
+    VBO *mUV_vbo;
+    VBO *mC_vbo;
 };
 
 extern NevoRenderPipeline gNevoRender;

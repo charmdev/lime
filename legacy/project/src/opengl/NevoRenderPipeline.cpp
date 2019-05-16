@@ -107,6 +107,38 @@ void Material::clear()
     mBlend = BlendType_NORMAL;
 }
 
+//VBO
+VBO::VBO(int size)
+{
+    mSize = size;
+    glGenBuffers(1, &mVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, mVBO);
+    glBufferData(GL_ARRAY_BUFFER, mSize, 0, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
+VBO::~VBO()
+{
+    glDeleteBuffers(1, &mVBO);
+}
+
+int VBO::size()
+{
+    return mSize;
+}
+
+unsigned VBO::id()
+{
+    return mVBO;
+}
+
+void VBO::update(int offset, int size, void *data)
+{
+    glBindBuffer(GL_ARRAY_BUFFER, mVBO);
+    glBufferSubData(GL_ARRAY_BUFFER, offset, size, data);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
 //NevoRenderPipeline
 NevoRenderPipeline::NevoRenderPipeline()
 {
@@ -148,17 +180,20 @@ void NevoRenderPipeline::Clear()
     }
 }
 
-void NevoRenderPipeline::setGraphicsData(Vec<Job*> *jobs, Vec<float> *xy, Vec<float> *uv, Vec<int> *c)
+void NevoRenderPipeline::setGraphicsData(Vec<Job*> *jobs, Vec<float> *xy, Vec<float> *uv, Vec<int> *c, VBO *xy_vbo, VBO *uv_vbo, VBO *c_vbo)
 {
     mJobs = jobs;
     mXY = xy;
     mUV = uv;
     mC = c;
+    mXY_vbo = xy_vbo;
+    mUV_vbo = uv_vbo;
+    mC_vbo = c_vbo;
 }
 
-void NevoRenderPipeline::drawGraphicsData(float *inTrans4x4, Color color)
+void NevoRenderPipeline::drawGraphicsData(float *inTrans4x4, Color *color)
 {
-    if (color.isTransparent())
+    if (color->isTransparent())
        return;
 
     bool refreshOnceParams = true;
@@ -191,10 +226,19 @@ void NevoRenderPipeline::drawGraphicsData(float *inTrans4x4, Color color)
         if (refreshOnceParams)
         {
             gCurShader->setMatrix4x4fv(gCurShader->mU_M, inTrans4x4);
-            gCurShader->setUniform4f(gCurShader->mU_C, color.b(), color.g(), color.r(), color.a());
-            gCurShader->setAttribPointer(0, gCurShader->mA_XY, 2, GL_FLOAT, GL_FALSE, 8, mXY->ptr());
-            gCurShader->setAttribPointer(0, gCurShader->mA_UV, 2, GL_FLOAT, GL_FALSE, 8, mUV->ptr());
-            gCurShader->setAttribPointer(0, gCurShader->mA_C, 4, GL_UNSIGNED_BYTE, GL_TRUE, 4, mC->ptr());
+            gCurShader->setUniform4f(gCurShader->mU_C, color->b(), color->g(), color->r(), color->a());
+            if (mXY_vbo)
+            {
+                gCurShader->setAttribPointer(mXY_vbo->id(), gCurShader->mA_XY, 2, GL_FLOAT, GL_FALSE, 8, 0);
+                gCurShader->setAttribPointer(mUV_vbo->id(), gCurShader->mA_UV, 2, GL_FLOAT, GL_FALSE, 8, 0);
+                gCurShader->setAttribPointer(mC_vbo->id(), gCurShader->mA_C, 4, GL_UNSIGNED_BYTE, GL_TRUE, 4, 0);
+            }
+            else 
+            {
+                gCurShader->setAttribPointer(0, gCurShader->mA_XY, 2, GL_FLOAT, GL_FALSE, 8, mXY->ptr());
+                gCurShader->setAttribPointer(0, gCurShader->mA_UV, 2, GL_FLOAT, GL_FALSE, 8, mUV->ptr());
+                gCurShader->setAttribPointer(0, gCurShader->mA_C, 4, GL_UNSIGNED_BYTE, GL_TRUE, 4, mC->ptr());
+            }
             refreshOnceParams = false;
         }
 

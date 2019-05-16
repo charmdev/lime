@@ -25,6 +25,15 @@ Graphics::Graphics(DisplayObject *inOwner,bool inInitRef) : Object(inInitRef)
    mMeasuredJobs = 0;
    mVersion = 0;
    mOwner = inOwner;
+#ifdef NEVO_RENDER
+   mNevoXY = new nevo::Vec<float>();
+   mNevoUV = new nevo::Vec<float>();
+   mNevoC = new nevo::Vec<int>();
+   mNevoXY_VBO = 0;
+   mNevoUV_VBO = 0;
+   mNevoC_VBO = 0;
+   mNumStaticFrames = 0;
+#endif
 }
 
 
@@ -36,6 +45,12 @@ Graphics::~Graphics()
 #ifdef NEVO_RENDER
    for (int i = 0; i < mAllocNevoJobs.size(); ++i)
       delete mAllocNevoJobs[i];
+   if (mNevoXY) delete mNevoXY;
+   if (mNevoUV) delete mNevoUV;
+   if (mNevoC) delete mNevoC;
+   if (mNevoXY_VBO) delete mNevoXY_VBO;
+   if (mNevoUV_VBO) delete mNevoUV_VBO;
+   if (mNevoC_VBO) delete mNevoC_VBO;
 #endif
 }
 
@@ -45,13 +60,23 @@ void Graphics::clear()
 #ifdef NEVO_RENDER
    for (int i = 0; i < mNevoJobs.size(); ++i)
       mNevoJobs[i]->clear();
+   if (!mNevoXY) mNevoXY = new nevo::Vec<float>();
+   if (!mNevoUV) mNevoUV = new nevo::Vec<float>();
+   if (!mNevoC) mNevoC = new nevo::Vec<int>();
    mNevoJobs.resize(0);
    mClickArea.resize(0);
-   mNevoXY.resize(0);
-   mNevoUV.resize(0);
-   mNevoC.resize(0);
+   mNevoXY->resize(0);
+   mNevoUV->resize(0);
+   mNevoC->resize(0);
    mNevoFillMtl.clear();
    mNevoTileMtl.clear();
+   if (mNevoXY_VBO) delete mNevoXY_VBO;
+   if (mNevoUV_VBO) delete mNevoUV_VBO;
+   if (mNevoC_VBO) delete mNevoC_VBO;
+   mNevoXY_VBO = 0;
+   mNevoUV_VBO = 0;
+   mNevoC_VBO = 0;
+   mNumStaticFrames = 0;
 #else
    mFillJob.clear();
    mLineJob.clear();
@@ -802,7 +827,27 @@ bool Graphics::Render( const RenderTarget &inTarget, const RenderState &inState 
       }
       else
       {
-         nevo::gNevoRender.setGraphicsData(&mNevoJobs, &mNevoXY, &mNevoUV, &mNevoC);
+         if (mNumStaticFrames < 121)
+            ++mNumStaticFrames;
+         if (mNumStaticFrames == 60)
+         {
+            mNevoXY_VBO = new nevo::VBO(mNevoXY->sizeMemSize());
+            mNevoXY_VBO->update(0, mNevoXY->sizeMemSize(), mNevoXY->ptr());
+            mNevoUV_VBO = new nevo::VBO(mNevoUV->sizeMemSize());
+            mNevoUV_VBO->update(0, mNevoUV->sizeMemSize(), mNevoUV->ptr());
+            mNevoC_VBO = new nevo::VBO(mNevoC->sizeMemSize());
+            mNevoC_VBO->update(0, mNevoC->sizeMemSize(), mNevoC->ptr());
+         }
+         else if (mNumStaticFrames == 120)
+         {
+            delete mNevoXY;
+            delete mNevoUV;
+            delete mNevoC;
+            mNevoXY = 0;
+            mNevoUV = 0;
+            mNevoC = 0;
+         }
+         nevo::gNevoRender.setGraphicsData(&mNevoJobs, mNevoXY, mNevoUV, mNevoC, mNevoXY_VBO, mNevoUV_VBO, mNevoC_VBO);
          inTarget.mHardware->Render(inState, *mHardwareData);
       }
    }
