@@ -25,12 +25,14 @@ Graphics::Graphics(DisplayObject *inOwner,bool inInitRef) : Object(inInitRef)
    mMeasuredJobs = 0;
    mVersion = 0;
    mOwner = inOwner;
-
 #ifdef NEVO_RENDER
-   mTileTexture = 0;
-   mFillTexture = 0;
-   mFillBGRA = 0xFFFFFFFF;
-   mTileBlendMode = bmNormal;
+   mNevoXY = new nevo::Vec<float>();
+   mNevoUV = new nevo::Vec<float>();
+   mNevoC = new nevo::Vec<int>();
+   mNevoXY_VBO = 0;
+   mNevoUV_VBO = 0;
+   mNevoC_VBO = 0;
+   mNumStaticFrames = 0;
 #endif
 }
 
@@ -40,6 +42,16 @@ Graphics::~Graphics()
    mOwner = 0;
    clear();
    mPathData->DecRef();
+#ifdef NEVO_RENDER
+   for (int i = 0; i < mAllocNevoJobs.size(); ++i)
+      delete mAllocNevoJobs[i];
+   if (mNevoXY) delete mNevoXY;
+   if (mNevoUV) delete mNevoUV;
+   if (mNevoC) delete mNevoC;
+   if (mNevoXY_VBO) delete mNevoXY_VBO;
+   if (mNevoUV_VBO) delete mNevoUV_VBO;
+   if (mNevoC_VBO) delete mNevoC_VBO;
+#endif
 }
 
 
@@ -47,14 +59,24 @@ void Graphics::clear()
 {
 #ifdef NEVO_RENDER
    for (int i = 0; i < mNevoJobs.size(); ++i)
-      nevo::gNevoJobsPool->refund(mNevoJobs[i]);
+      mNevoJobs[i]->clear();
+   if (!mNevoXY) mNevoXY = new nevo::Vec<float>();
+   if (!mNevoUV) mNevoUV = new nevo::Vec<float>();
+   if (!mNevoC) mNevoC = new nevo::Vec<int>();
    mNevoJobs.resize(0);
-   if (mTileTexture) mTileTexture->DecRef();
-   if (mFillTexture) mFillTexture->DecRef();
-   mTileTexture = 0;
-   mFillTexture = 0;
-   mFillBGRA = 0xFFFFFFFF;
-   mTileBlendMode = bmNormal;
+   mClickArea.resize(0);
+   mNevoXY->resize(0);
+   mNevoUV->resize(0);
+   mNevoC->resize(0);
+   mNevoFillMtl.clear();
+   mNevoTileMtl.clear();
+   if (mNevoXY_VBO) delete mNevoXY_VBO;
+   if (mNevoUV_VBO) delete mNevoUV_VBO;
+   if (mNevoC_VBO) delete mNevoC_VBO;
+   mNevoXY_VBO = 0;
+   mNevoUV_VBO = 0;
+   mNevoC_VBO = 0;
+   mNumStaticFrames = 0;
 #else
    mFillJob.clear();
    mLineJob.clear();
@@ -129,9 +151,18 @@ void Graphics::drawCircle(float x,float y, float radius)
 void Graphics::drawRect(float x, float y, float width, float height)
 {
 #ifdef NEVO_RENDER
-   nevo::Job *job = mNevoJobs.inc() = nevo::gNevoJobsPool->get();
-   job->mtl(mFillTexture, mFillBGRA, mOwner->getBlendMode());
-   job->rect(x, y, width, height);
+   static float tW, tH;
+   mNevoFillMtl.setBlendMode(mOwner->getBlendMode());
+   startNewBatch(mNevoFillMtl);
+   mClickArea.inc().initBB(x, y);
+   tW = mNevoFillMtl.getHardwareTextureWidth();
+   tH = mNevoFillMtl.getHardwareTextureHeight();
+   pushVertex(x, y, x / tW, y / tH, mNevoFillMtl.mColor.mBGRA);
+   pushVertex(x + width, y, (x + width) / tW, y / tH, mNevoFillMtl.mColor.mBGRA);
+   pushVertex(x + width, y + height, (x + width) / tW, (y + height) / tH, mNevoFillMtl.mColor.mBGRA);
+   pushVertex(x + width, y + height, (x + width) / tW, (y + height) / tH, mNevoFillMtl.mColor.mBGRA);
+   pushVertex(x, y + height, x / tW, (y + height) / tH, mNevoFillMtl.mColor.mBGRA);
+   pushVertex(x, y, x / tW, y / tH, mNevoFillMtl.mColor.mBGRA);
 #else
    Flush();
    moveTo(x,y);
@@ -258,20 +289,19 @@ void Graphics::drawGraphicsDatum(IGraphicsData *inData)
       case gdtBitmapFill:
          {
             GraphicsBitmapFill *bf = inData->AsBitmapFill();
-            if (mFillTexture) mFillTexture->DecRef();
-            mFillTexture = bf->bitmapData;
-            if (mFillTexture) mFillTexture->IncRef();
-            if (mFillTexture) mFillTexture->GetTexture(nme::HardwareRenderer::current)->BindFlags(bf->repeat, bf->smooth);
-            mFillBGRA = 0xFFFFFFFF;
+
+            Surface *surface = bf->bitmapData;
+            mNevoFillMtl.setSurface(surface);
+            if (surface) surface->GetTexture(nme::HardwareRenderer::current)->BindFlags(bf->repeat, bf->smooth);
+            mNevoFillMtl.mColor.mBGRA = 0xFFFFFFFF;
          }
          break;
 
       case gdtSolidFill:
          {
             GraphicsSolidFill *sf = inData->AsSolidFill();
-            if (mFillTexture) mFillTexture->DecRef();
-            mFillTexture = 0;
-            mFillBGRA = sf->mRGB.ival;
+            mNevoFillMtl.setSurface(0);
+            mNevoFillMtl.mColor.mBGRA = sf->mRGB.ival;
          }
          break;
    }
@@ -348,10 +378,8 @@ void Graphics::drawGraphicsData(IGraphicsData **graphicsData,int inN)
 void Graphics::beginFill(unsigned int color, float alpha)
 {
 #ifdef NEVO_RENDER
-   if (mFillTexture) mFillTexture->DecRef();
-   mFillTexture = 0;
-   mFillBGRA = color;
-   mFillBGRA |= ((unsigned int)(255 * alpha) << 24);
+   mNevoFillMtl.setSurface(0);
+   mNevoFillMtl.mColor.set(color, alpha);
 #else
    Flush(false,true,true);
    endTiles();
@@ -380,11 +408,9 @@ void Graphics::beginBitmapFill(Surface *bitmapData, const Matrix &inMatrix,
    bool inRepeat, bool inSmooth)
 {
 #ifdef NEVO_RENDER
-   if (mFillTexture) mFillTexture->DecRef();
-   mFillTexture = bitmapData;
-   if (mFillTexture) mFillTexture->IncRef();
-   if (mFillTexture) mFillTexture->GetTexture(nme::HardwareRenderer::current)->BindFlags(inRepeat, inSmooth);
-   mFillBGRA = 0xFFFFFFFF;
+   mNevoFillMtl.setSurface(bitmapData);
+   if (bitmapData) bitmapData->GetTexture(nme::HardwareRenderer::current)->BindFlags(inRepeat, inSmooth);
+   mNevoFillMtl.mColor.mBGRA = 0xFFFFFFFF;
 #else
    Flush(false,true,true);
    endTiles();
@@ -413,11 +439,9 @@ void Graphics::endTiles()
 void Graphics::beginTiles(Surface *bitmapData,bool inSmooth,int inBlendMode)
 {
 #ifdef NEVO_RENDER
-   if (mTileTexture) mTileTexture->DecRef();
-   mTileTexture = bitmapData;
-   if (mTileTexture) mTileTexture->IncRef();
-   if (mTileTexture) mTileTexture->GetTexture(nme::HardwareRenderer::current)->BindFlags(false, inSmooth);
-   mTileBlendMode = inBlendMode;
+   mNevoTileMtl.setSurface(bitmapData);
+   if (bitmapData) bitmapData->GetTexture(nme::HardwareRenderer::current)->BindFlags(false, inSmooth);
+   mNevoTileMtl.setBlendMode(inBlendMode);
 #else
    endFill();
    lineStyle(-1);
@@ -514,17 +538,28 @@ void Graphics::arcTo(float cx, float cy, float x, float y)
 void Graphics::tile(float x, float y, const Rect &inTileRect,float *inTrans,float *inRGBA)
 {
 #ifdef NEVO_RENDER
-   nevo::Job *job = mNevoJobs.inc() = nevo::gNevoJobsPool->get();
-   unsigned int bgra = 0xFFFFFFFF;
-   if (inRGBA)
-   {
-      bgra = (unsigned int)(255 * inRGBA[2]);
-      bgra |= ((unsigned int)(255 * inRGBA[1]) << 8);
-      bgra |= ((unsigned int)(255 * inRGBA[0]) << 16);
-      bgra |= ((unsigned int)(255 * inRGBA[3]) << 24);
-   }
-   job->mtl(mTileTexture, bgra, mTileBlendMode);
-   job->tile(x, y, inTileRect.x, inTileRect.y, inTileRect.w, inTileRect.h, inTrans);
+   static struct { float x, y; } v[4];
+   static struct { float u, v; } t[4];
+   static float tW, tH;
+   mult(0.0f, 0.0f, inTrans, x, y, v[0].x, v[0].y);
+   mult(inTileRect.w, 0.0f, inTrans, x, y, v[1].x, v[1].y);
+   mult(inTileRect.w, inTileRect.h, inTrans, x, y, v[2].x, v[2].y);
+   mult(0.0f, inTileRect.h, inTrans, x, y, v[3].x, v[3].y);
+   mNevoTileMtl.mColor.set(inRGBA);
+   startNewBatch(mNevoTileMtl);
+   mClickArea.inc().initBB(v[0].x, v[0].y);
+   tW = mNevoTileMtl.getHardwareTextureWidth();
+   tH = mNevoTileMtl.getHardwareTextureHeight();
+   t[0].u = inTileRect.x / tW; t[0].v = inTileRect.y / tH;
+   t[1].u = (inTileRect.x + inTileRect.w) / tW; t[1].v = inTileRect.y / tH;
+   t[2].u = (inTileRect.x + inTileRect.w) / tW; t[2].v = (inTileRect.y + inTileRect.h) / tH;
+   t[3].u = inTileRect.x / tW; t[3].v = (inTileRect.y + inTileRect.h) / tH;
+   pushVertex(v[0].x, v[0].y, t[0].u, t[0].v, mNevoTileMtl.mColor.mBGRA);
+   pushVertex(v[1].x, v[1].y, t[1].u, t[1].v, mNevoTileMtl.mColor.mBGRA);
+   pushVertex(v[2].x, v[2].y, t[2].u, t[2].v, mNevoTileMtl.mColor.mBGRA);
+   pushVertex(v[2].x, v[2].y, t[2].u, t[2].v, mNevoTileMtl.mColor.mBGRA);
+   pushVertex(v[3].x, v[3].y, t[3].u, t[3].v, mNevoTileMtl.mColor.mBGRA);
+   pushVertex(v[0].x, v[0].y, t[0].u, t[0].v, mNevoTileMtl.mColor.mBGRA);
 #else
    mPathData->tile(x,y,inTileRect,inTrans,inRGBA);
 #endif
@@ -598,11 +633,24 @@ void Graphics::drawTrianglesNevo(int inXYs_n, float *inXYs,
             int inIndixes_n, short *inIndixes, int inUVT_n, float *inUVT,
             int inColours_n, int *inColours, int inCull, int blendMode)
 {
-   nevo::Job *job = mNevoJobs.inc() = nevo::gNevoJobsPool->get();
-   job->mtl(mFillTexture, mFillBGRA, blendMode);
-   job->triangles(inXYs_n, inXYs,
-      inIndixes_n, inIndixes, inUVT_n, inUVT,
-      inColours_n, inColours);
+   static int p0, p1, p2, p0x, p0y, p1x, p1y, p2x, p2y;
+   static float tWs, tHs;
+   static int numTriangles;
+   mNevoFillMtl.setBlendMode(blendMode);
+   startNewBatch(mNevoFillMtl);
+   mClickArea.inc().initBB(inXYs[0], inXYs[1]);
+   tWs = mNevoFillMtl.getWidthRatio();
+   tHs = mNevoFillMtl.getHeightRatio();
+   numTriangles = inIndixes_n / 3;
+   for (int i = 0; i < numTriangles; ++i)
+   {
+      p0 = inIndixes[i * 3]; p0x = p0 * 2; p0y = p0x + 1;
+      p1 = inIndixes[i * 3 + 1]; p1x = p1 * 2; p1y = p1x + 1;
+      p2 = inIndixes[i * 3 + 2]; p2x = p2 * 2; p2y = p2x + 1;
+      pushVertex(inXYs[p0x], inXYs[p0y], inUVT[p0x] * tWs, inUVT[p0y] * tHs, inColours ? inColours[p0] : mNevoFillMtl.mColor.mBGRA);
+      pushVertex(inXYs[p1x], inXYs[p1y], inUVT[p1x] * tWs, inUVT[p1y] * tHs, inColours ? inColours[p1] : mNevoFillMtl.mColor.mBGRA);
+      pushVertex(inXYs[p2x], inXYs[p2y], inUVT[p2x] * tWs, inUVT[p2y] * tHs, inColours ? inColours[p2] : mNevoFillMtl.mColor.mBGRA);
+   }
 }
 #endif
 
@@ -707,21 +755,20 @@ Extent2DF Graphics::GetSoftwareExtent(const Transform &inTransform, bool inInclu
 #ifdef NEVO_RENDER
    static const Matrix *m;
    static float x, y;
-   static nevo::Job *job;
    static int i, j;
    Extent2DF result;
 
    m = inTransform.mMatrix;
-   for (i = 0; i < mNevoJobs.size(); ++i)
+   for (i = 0; i < mClickArea.size(); ++i)
    {
-      job = mNevoJobs[i];
-      x = job->mBBminX; y = job->mBBminY;
+      nevo::BB &area = mClickArea[i];
+      x = area.mBBminX; y = area.mBBminY;
       result.Add(m->m00 * x + m->m01 * y + m->mtx, m->m10 * x + m->m11 * y + m->mty);
-      x = job->mBBmaxX; y = job->mBBminY;
+      x = area.mBBmaxX; y = area.mBBminY;
       result.Add(m->m00 * x + m->m01 * y + m->mtx, m->m10 * x + m->m11 * y + m->mty);
-      x = job->mBBmaxX; y = job->mBBmaxY;
+      x = area.mBBmaxX; y = area.mBBmaxY;
       result.Add(m->m00 * x + m->m01 * y + m->mtx, m->m10 * x + m->m11 * y + m->mty);
-      x = job->mBBminX; y = job->mBBmaxY;
+      x = area.mBBminX; y = area.mBBmaxY;
       result.Add(m->m00 * x + m->m01 * y + m->mtx, m->m10 * x + m->m11 * y + m->mty);
    }
 
@@ -771,17 +818,37 @@ bool Graphics::Render( const RenderTarget &inTarget, const RenderState &inState 
             return false;
          UserPoint screen(inState.mClipRect.x, inState.mClipRect.y);
          UserPoint pos = inState.mTransform.mMatrix->ApplyInverse(screen);
-         for (int i = 0; i < mNevoJobs.size(); ++i)
+         for (int i = 0; i < mClickArea.size(); ++i)
          {
-            if (mNevoJobs[i]->hitTest(pos.x, pos.y))
+            if (mClickArea[i].hitTest(pos.x, pos.y))
                return true;
          }
          return false;
       }
       else
       {
-         nevo::gNevoRender.setJobs(&mNevoJobs);
-         inTarget.mHardware->Render(inState,*mHardwareData);
+         if (mNumStaticFrames < 121)
+            ++mNumStaticFrames;
+         if (mNumStaticFrames == 60)
+         {
+            mNevoXY_VBO = new nevo::VBO(mNevoXY->sizeMemSize());
+            mNevoXY_VBO->update(0, mNevoXY->sizeMemSize(), mNevoXY->ptr());
+            mNevoUV_VBO = new nevo::VBO(mNevoUV->sizeMemSize());
+            mNevoUV_VBO->update(0, mNevoUV->sizeMemSize(), mNevoUV->ptr());
+            mNevoC_VBO = new nevo::VBO(mNevoC->sizeMemSize());
+            mNevoC_VBO->update(0, mNevoC->sizeMemSize(), mNevoC->ptr());
+         }
+         else if (mNumStaticFrames == 120)
+         {
+            delete mNevoXY;
+            delete mNevoUV;
+            delete mNevoC;
+            mNevoXY = 0;
+            mNevoUV = 0;
+            mNevoC = 0;
+         }
+         nevo::gNevoRender.setGraphicsData(&mNevoJobs, mNevoXY, mNevoUV, mNevoC, mNevoXY_VBO, mNevoUV_VBO, mNevoC_VBO);
+         inTarget.mHardware->Render(inState, *mHardwareData);
       }
    }
 #else

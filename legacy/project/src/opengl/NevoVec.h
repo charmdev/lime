@@ -28,6 +28,11 @@ public:
         return mPtr[mSize - 1];
     }
 
+    T& prev()
+    {
+        return mPtr[mSize - 2];
+    }
+
     T& inc()
     {
         ++mSize;
@@ -82,6 +87,11 @@ public:
     inline T& operator[](int index)
     {
         return mPtr[index];
+    }
+
+    inline void* ptr()
+    {
+        return (void*)mPtr;
     }
     
 private:

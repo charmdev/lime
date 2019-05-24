@@ -4732,6 +4732,7 @@ value nme_sound_channel_stop(value inChannel)
    if (AbstractToObject(inChannel,channel))
    {
       channel->stop();
+	  channel->release(); //* Release the OpenAL source
    }
    return alloc_null();
 }

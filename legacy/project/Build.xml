@@ -173,7 +173,6 @@
 			
 			<file name="${LEGACY_SRC_DIR}/opengl/NevoRenderPipeline.cpp" />
 			<file name="${LEGACY_SRC_DIR}/opengl/NevoShaders.cpp" />
-			<file name="${LEGACY_SRC_DIR}/opengl/NevoGLContainers.cpp" />
 			<file name="${LEGACY_SRC_DIR}/opengl/OpenGLContext.cpp" />
 			<file name="${LEGACY_SRC_DIR}/opengl/OGLTexture.cpp" />
 			<file name="${LEGACY_SRC_DIR}/opengl/OGLShaders.cpp" />
