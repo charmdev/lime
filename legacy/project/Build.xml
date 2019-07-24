@@ -79,6 +79,8 @@
 		
 		<section if="iphone">
 			
+			<compilerflag value="-stdlib=libc++" />
+			
 			<file name="${LEGACY_SRC_DIR}/iPhone/UIStageView.mm" />
 			<file name="${LEGACY_SRC_DIR}/iPhone/UIDeviceHardware.mm" />
 			<!-- <file name="${LEGACY_SRC_DIR}/iPhone/SurfaceIO.mm" /> -->
