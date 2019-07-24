@@ -13,13 +13,9 @@ class Surface;
 namespace nevo
 {
 
-class VBO;
-class EBO;
-class Memory;
-
 struct Color
 {
-    Color() {}
+    Color() { mBGRA = 0xFFFFFFFF; }
 
     float r() { return mR / 255.0f; }
     float g() { return mG / 255.0f; }
@@ -28,16 +24,16 @@ struct Color
 
     void set(float nR, float nG, float nB, float nA)
     {
-        mR = (unsigned char)(nR * 255.0f);
-        mG = (unsigned char)(nG * 255.0f);
-        mB = (unsigned char)(nB * 255.0f);
-        mA = (unsigned char)(nA * 255.0f);
+        mR = (unsigned char)((nR > 1.0f ? 1.0f : nR < 0.0f ? 0.0f : nR) * 255.0f);
+        mG = (unsigned char)((nG > 1.0f ? 1.0f : nG < 0.0f ? 0.0f : nG) * 255.0f);
+        mB = (unsigned char)((nB > 1.0f ? 1.0f : nB < 0.0f ? 0.0f : nB) * 255.0f);
+        mA = (unsigned char)((nA > 1.0f ? 1.0f : nA < 0.0f ? 0.0f : nA) * 255.0f);
     }
 
     void set(unsigned int bgr, float nA)
     {
         mBGRA = bgr;
-        mA = (unsigned char)(nA * 255.0f);
+        mA = (unsigned char)((nA > 1.0f ? 1.0f : nA < 0.0f ? 0.0f : nA) * 255.0f);
     }
 
     void set(float *inRGBA)
@@ -50,10 +46,10 @@ struct Color
 
     void mult(float nR, float nG, float nB, float nA)
     {
-        mR = (unsigned char)(r() * nR * 255.0f);
-        mG = (unsigned char)(g() * nG * 255.0f);
-        mB = (unsigned char)(b() * nB * 255.0f);
-        mA = (unsigned char)(a() * nA * 255.0f);
+        mR = (unsigned char)(r() * (nR > 1.0f ? 1.0f : nR < 0.0f ? 0.0f : nR) * 255.0f);
+        mG = (unsigned char)(g() * (nG > 1.0f ? 1.0f : nG < 0.0f ? 0.0f : nG) * 255.0f);
+        mB = (unsigned char)(b() * (nB > 1.0f ? 1.0f : nB < 0.0f ? 0.0f : nB) * 255.0f);
+        mA = (unsigned char)(a() * (nA > 1.0f ? 1.0f : nA < 0.0f ? 0.0f : nA) * 255.0f);
     }
 
     bool isTransparent() { return (mA < 10); }
@@ -70,8 +66,10 @@ struct Material
     enum BlendType { BlendType_NORMAL, BlendType_ADD };
 
     Material();
+    ~Material();
 
-    void set(nme::Surface *surface, Color color, int blendMode);
+    void setSurface(nme::Surface *surface);
+    void setBlendMode(int blendMode);
     float getBlendFactor();
     bool isTransparent() { return mColor.isTransparent(); }
     bool hasTexture();
@@ -88,11 +86,20 @@ struct Material
 
     void clear();
 
-    inline bool operator==(const Material &rhs)
+    bool operator==(const Material &rhs)
     {
         return (mSurface ==  rhs.mSurface) && (mBlend == rhs.mBlend);
     }
-    inline bool operator!=(const Material &rhs) { return !(*this == rhs); }
+
+    bool operator!=(const Material &rhs) { return !(*this == rhs); }
+    
+    Material& operator=(const Material &rhs)
+    {
+        setSurface(rhs.mSurface);
+        mColor = rhs.mColor;
+        mBlend = rhs.mBlend;
+        return *this;
+    }
 
     nme::Surface *mSurface;
     Color mColor;
@@ -101,58 +108,32 @@ struct Material
 
 struct Job
 {
-    enum JobType { JobType_NONE, JobType_RECT, JobType_TILE, JobType_TRIANGLES };
+    Job() {}
 
-    Job()
+    void clear()
     {
-        mT_XY = 0; mT_UV = 0; mT_C = 0; mT_I = 0; mT_In = 0;
-        mType = JobType_NONE;
+        mMtl.clear();
     }
-
-    ~Job()
-    {
-        clear();
-    }
-    
-    void rect(float x, float y, float width, float height);
-    void tile(float x, float y, int rectX, int rectY, int rectW, int rectH, float *inTrans);
-    void triangles(int inXYs_n, float *inXYs,
-        int inIndixes_n, short *inIndixes, int inUVT_n, float *inUVT,
-        int inColours_n, int *inColours);
-    bool hitTest(float x, float y);
-    void clear();
-
-    bool isTypeRect() { return (mType == JobType_RECT); }
-    bool isTypeTile() { return (mType == JobType_TILE); }
-    bool isTypeTriangles() { return (mType == JobType_TRIANGLES); }
 
     Material mMtl;
-    JobType mType;
+    int mVfirst, mVcount;
+};
 
-    union
+struct BB
+{
+    BB() {}
+
+    bool hitTest(float x, float y)
     {
-        struct
-        {
-            Memory *mT_XY;
-            Memory *mT_UV;
-            Memory *mT_C;
-            Memory *mT_I;
-            int mT_In;
-        };
-        
-        struct
-        {
-            struct { float x, y; } mQ_XY[4];
-            struct { float u, v; } mQ_UV[4];
-        };
-    };
+        return (mBBminX <= x) && (mBBminY <= y) && (mBBmaxX >= x) && (mBBmaxY >= y);
+    }
 
-    float mBBminX, mBBminY, mBBmaxX, mBBmaxY;
     void initBB(float x, float y)
     {
         mBBminX = mBBmaxX = x;
         mBBminY = mBBmaxY = y;
     }
+
     void calcBB(float x, float y)
     {
         if (x < mBBminX) mBBminX = x;
@@ -160,19 +141,23 @@ struct Job
         if (y < mBBminY) mBBminY = y;
         if (y > mBBmaxY) mBBmaxY = y;
     }
+
+    float mBBminX, mBBminY, mBBmaxX, mBBmaxY;
 };
 
-class JobsPool
+class VBO
 {
 public:
-    JobsPool();
-    ~JobsPool();
+    VBO(int size);
+    ~VBO();
 
-    Job* get();
-    void refund(Job *job);
+    int size();
+    unsigned id();
+    void update(int offset, int size, void *data);
+
 private:
-    Vec<Job*> mAlloc;
-    Vec<Job*> mFree;
+    int mSize;
+    unsigned mVBO;
 };
 
 class NevoRenderPipeline
@@ -184,25 +169,21 @@ public:
     void Init();
     void Clear();
 
-    void setJobs(Vec<Job*> *jobs);
-    void setNodeParams(float *inTrans4x4, Color color);
+    void setGraphicsData(Vec<Job*> *jobs, Vec<float> *xy, Vec<float> *uv, Vec<int> *c, VBO *xy_vbo, VBO *uv_vbo, VBO *c_vbo);
+    void drawGraphicsData(float *inTrans4x4, Color *color);
     void begin();
     void end();
 
 private:
-    bool pushQuad(Job *job);
-    void flushGeometry();
-
     Vec<Job*> *mJobs;
-
-    static const int cMaxVerts = 65535;
-    Vec<float> mXY;
-    Vec<float> mUV;
-    Vec<int> mC;
-    Vec<unsigned short> mI;
+    Vec<float> *mXY;
+    Vec<float> *mUV;
+    Vec<int> *mC;
+    VBO *mXY_vbo;
+    VBO *mUV_vbo;
+    VBO *mC_vbo;
 };
 
-extern JobsPool *gNevoJobsPool;
 extern NevoRenderPipeline gNevoRender;
 
 }

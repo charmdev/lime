@@ -28,6 +28,11 @@ public:
         return mPtr[mSize - 1];
     }
 
+    T& prev()
+    {
+        return mPtr[mSize - 2];
+    }
+
     T& inc()
     {
         ++mSize;
