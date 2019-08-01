@@ -3170,7 +3170,7 @@ public:
         switch ((int)[[UIScreen mainScreen] nativeBounds].size.height)
         {
             case 2436:
-                self.view.bounds = CGRectInset(self.view.frame, 30.0f, 0.0f);
+                self.view.bounds = CGRectInset(self.view.frame, 0.0f, 0.0f);
             break;
         }
     }
@@ -3490,7 +3490,7 @@ public:
     switch ((int)[[UIScreen mainScreen] nativeBounds].size.height)
     {
         case 2436: // iPhone X
-            dx = 30.0f;
+            dx = 0.0f;
         break;
     }
     
