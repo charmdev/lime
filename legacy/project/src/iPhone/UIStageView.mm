@@ -2365,7 +2365,23 @@ static bool sgEnableMSAA2 = true;
 static bool sgEnableMSAA4 = true;
 static bool sgVSync = false;
 
+static const int iPhoneXScreenWidth = 2436;
+static const int iPhoneXAppWidth = 2256;
 
+bool isIphoneX(int screenWidth)
+{
+    return (screenWidth == iPhoneXScreenWidth);
+}
+
+int getAppWidth(int screenWidth)
+{
+	return isIphoneX(screenWidth) ? iPhoneXAppWidth : screenWidth;
+}
+
+CGFloat touchOffsetX(int screenWidth)
+{
+    return isIphoneX(screenWidth) ? 30.0f : 0.0f;
+}
 
 const void* imageDataProviderGetBytePointer(void* imageData)
 {
@@ -2822,12 +2838,16 @@ public:
       DestroyOGLFramebuffer();
       CreateOGLFramebuffer();
 
-      mHardwareRenderer->SetWindowSize(backingWidth,backingHeight);
+      int appWidth = getAppWidth(backingWidth);
+	  int appHeight = backingHeight;
 
+      mHardwareRenderer->SetWindowSize(appWidth,appHeight);
+       
       //printf("OnOGLResize %dx%d\n", backingWidth, backingHeight);
+       
       Event evt(etResize);
-      evt.x = backingWidth;
-      evt.y = backingHeight;
+      evt.x = appWidth;
+      evt.y = appHeight;
       HandleEvent(evt);
 
    }
@@ -3167,12 +3187,7 @@ public:
     
     if([[UIDevice currentDevice]userInterfaceIdiom]==UIUserInterfaceIdiomPhone)
     {
-        switch ((int)[[UIScreen mainScreen] nativeBounds].size.height)
-        {
-            case 2436:
-                self.view.bounds = CGRectInset(self.view.frame, 0.0f, 0.0f);
-            break;
-        }
+        self.view.bounds = CGRectInset(self.view.frame, touchOffsetX((int)[[UIScreen mainScreen] nativeBounds].size.height), 0.0f);
     }
 }
 
@@ -3485,16 +3500,7 @@ public:
 
 - (CGFloat)getTouchDx
 {
-    CGFloat dx = 0.0f;
-    
-    switch ((int)[[UIScreen mainScreen] nativeBounds].size.height)
-    {
-        case 2436: // iPhone X
-            dx = 0.0f;
-        break;
-    }
-    
-    return dx;
+    return touchOffsetX((int)[[UIScreen mainScreen] nativeBounds].size.height);
 }
 
 - (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event
