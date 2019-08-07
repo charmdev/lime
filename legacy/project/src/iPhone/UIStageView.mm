@@ -2366,16 +2366,10 @@ static bool sgEnableMSAA4 = true;
 static bool sgVSync = false;
 
 static const int iPhoneXScreenWidth = 2436;
-static const int iPhoneXAppWidth = 2256;
 
 bool isIphoneX(int screenWidth)
 {
     return (screenWidth == iPhoneXScreenWidth);
-}
-
-int getAppWidth(int screenWidth)
-{
-	return isIphoneX(screenWidth) ? iPhoneXAppWidth : screenWidth;
 }
 
 CGFloat touchOffsetX(int screenWidth)
@@ -2838,18 +2832,17 @@ public:
       DestroyOGLFramebuffer();
       CreateOGLFramebuffer();
 
-      int appWidth = getAppWidth(backingWidth);
-	  int appHeight = backingHeight;
-
-      mHardwareRenderer->SetWindowSize(appWidth,appHeight);
+      mHardwareRenderer->SetWindowSize(backingWidth,backingHeight);
        
       //printf("OnOGLResize %dx%d\n", backingWidth, backingHeight);
        
-      Event evt(etResize);
-      evt.x = appWidth;
-      evt.y = appHeight;
-      HandleEvent(evt);
-
+	  if (!isIphoneX(backingWidth))
+	  {
+         Event evt(etResize);
+         evt.x = backingWidth;
+         evt.y = backingHeight;
+         HandleEvent(evt);
+	  }
    }
    
    void DestroyImageBuffers()
