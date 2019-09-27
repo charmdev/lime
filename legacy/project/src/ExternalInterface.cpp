@@ -129,6 +129,7 @@ DEFINE_LIME_LEGACY_PRIM_1(clear_user_preference);
 DEFINE_LIME_LEGACY_PRIM_1(stage_set_fixed_orientation);
 //DEFINE_LIME_LEGACY_PRIM_0(init_sdl_audio);
 DEFINE_LIME_LEGACY_PRIM_1(get_frame_stage);
+DEFINE_LIME_LEGACY_PRIM_1(get_notch_height_stage);
 DEFINE_LIME_LEGACY_PRIM_4(set_package);
 DEFINE_LIME_LEGACY_PRIM_MULT(create_main_frame);
 DEFINE_LIME_LEGACY_PRIM_1(set_asset_base);
