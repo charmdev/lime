@@ -65,6 +65,8 @@ Stage::Stage(bool inInitRef) : DisplayObjectContainer(inInitRef)
    mNextWake = 0.0;
    displayState = sdsNormal;
    align = saTopLeft;
+   
+   mNotchHeight = 0;
 
    #if defined(IPHONE) || defined(ANDROID) || defined(WEBOS) || defined(TIZEN)
    quality = sqLow;

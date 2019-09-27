@@ -410,6 +410,9 @@ public:
    DisplayObject *GetFocusObject() { return mFocusObject; }
    void SetFocusObject(DisplayObject *inObj,FocusSource inSource=fsProgram,int inKey=0);
    void HandleEvent(Event &inEvent);
+   
+   void SetNotchHeight(int height) { mNotchHeight = height; }
+   int GetNotchHeight() { return mNotchHeight; }
 
 protected:
    ~Stage();
@@ -437,6 +440,8 @@ protected:
    DisplayObject *mFocusObject;
    DisplayObject *mMouseDownObject;
    SimpleButton  *mSimpleButton;
+   
+   int mNotchHeight;
 
    static Stage  *gCurrentStage;
 

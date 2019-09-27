@@ -1171,6 +1171,15 @@ value nme_get_frame_stage(value inValue)
 }
 DEFINE_PRIM(nme_get_frame_stage,1);
 
+value nme_get_notch_height_stage(value inValue)
+{
+   Stage *stage;
+   if (AbstractToObject(inValue,stage))
+      return alloc_int(stage->GetNotchHeight());
+
+   return alloc_int(0);
+}
+DEFINE_PRIM(nme_get_notch_height_stage);
 
 AutoGCRoot *sOnCreateCallback = 0;
 

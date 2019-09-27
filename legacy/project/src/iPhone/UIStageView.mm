@@ -2366,15 +2366,16 @@ static bool sgEnableMSAA4 = true;
 static bool sgVSync = false;
 
 static const int iPhoneXScreenWidth = 2436;
+static const int iPhone11ProScreenWidth = 2688;
 
-bool isIphoneX(int screenWidth)
+bool hasNotch(int screenWidth)
 {
-    return (screenWidth == iPhoneXScreenWidth);
+    return (screenWidth == iPhoneXScreenWidth || screenWidth == iPhone11ProScreenWidth);
 }
 
-CGFloat touchOffsetX(int screenWidth)
+int notchHeight(int screenWidth)
 {
-    return isIphoneX(screenWidth) ? 30.0f : 0.0f;
+    return hasNotch(screenWidth) ? 30 : 0;
 }
 
 const void* imageDataProviderGetBytePointer(void* imageData)
@@ -2836,13 +2837,10 @@ public:
        
       //printf("OnOGLResize %dx%d\n", backingWidth, backingHeight);
        
-	  if (!isIphoneX(backingWidth))
-	  {
-         Event evt(etResize);
-         evt.x = backingWidth;
-         evt.y = backingHeight;
-         HandleEvent(evt);
-	  }
+	  Event evt(etResize);
+      evt.x = backingWidth;
+      evt.y = backingHeight;
+      HandleEvent(evt);
    }
    
    void DestroyImageBuffers()
@@ -3178,10 +3176,10 @@ public:
 {
     [super viewDidAppear:animated];
     
-    if([[UIDevice currentDevice]userInterfaceIdiom]==UIUserInterfaceIdiomPhone)
-    {
-        self.view.bounds = CGRectInset(self.view.frame, touchOffsetX((int)[[UIScreen mainScreen] nativeBounds].size.height), 0.0f);
-    }
+    if ([[UIDevice currentDevice]userInterfaceIdiom]==UIUserInterfaceIdiomPhone) 
+	{
+		nmeStage->SetNotchHeight(notchHeight(nmeStage->Width()));
+	}
 }
 
 - (void)viewDidLoad
@@ -3491,11 +3489,6 @@ public:
    return NO;
 }
 
-- (CGFloat)getTouchDx
-{
-    return touchOffsetX((int)[[UIScreen mainScreen] nativeBounds].size.height);
-}
-
 - (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event
 {
    NSArray *touchArr = [touches allObjects];
@@ -3515,7 +3508,7 @@ public:
 
       if (mMultiTouch)
       {
-         Event mouse(etTouchBegin, thumbPoint.x - [self getTouchDx], thumbPoint.y);
+         Event mouse(etTouchBegin, thumbPoint.x, thumbPoint.y);
          mouse.value = [aTouch hash];
          if (mouse.value==mPrimaryTouchHash)
             mouse.flags |= efPrimaryTouch;
@@ -3523,7 +3516,7 @@ public:
       }
       else
       {
-         Event mouse(etMouseDown, thumbPoint.x - [self getTouchDx], thumbPoint.y);
+         Event mouse(etMouseDown, thumbPoint.x, thumbPoint.y);
          mouse.flags |= efLeftDown;
          mouse.flags |= efPrimaryTouch;
          mStage->OnMouseEvent(mouse);
@@ -3547,7 +3540,7 @@ public:
 
       if (mMultiTouch)
       {
-         Event mouse(etTouchMove, thumbPoint.x - [self getTouchDx], thumbPoint.y);
+         Event mouse(etTouchMove, thumbPoint.x, thumbPoint.y);
          mouse.value = [aTouch hash];
          if (mouse.value==mPrimaryTouchHash)
             mouse.flags |= efPrimaryTouch;
@@ -3555,7 +3548,7 @@ public:
       }
       else
       {
-         Event mouse(etMouseMove, thumbPoint.x - [self getTouchDx], thumbPoint.y);
+         Event mouse(etMouseMove, thumbPoint.x, thumbPoint.y);
          mouse.flags |= efLeftDown;
          mouse.flags |= efPrimaryTouch;
          mStage->OnMouseEvent(mouse);
@@ -3578,7 +3571,7 @@ public:
 
       if (mMultiTouch)
       {
-         Event mouse(etTouchEnd, thumbPoint.x - [self getTouchDx], thumbPoint.y);
+         Event mouse(etTouchEnd, thumbPoint.x, thumbPoint.y);
          mouse.value = [aTouch hash];
          if (mouse.value==mPrimaryTouchHash)
          {
@@ -3589,7 +3582,7 @@ public:
       }
       else
       {
-         Event mouse(etMouseUp, thumbPoint.x - [self getTouchDx], thumbPoint.y);
+         Event mouse(etMouseUp, thumbPoint.x, thumbPoint.y);
          mouse.flags |= efPrimaryTouch;
          mStage->OnMouseEvent(mouse);
       }
