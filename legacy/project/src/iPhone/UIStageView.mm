@@ -3178,7 +3178,7 @@ public:
     
     if ([[UIDevice currentDevice]userInterfaceIdiom]==UIUserInterfaceIdiomPhone) 
 	{
-		nmeStage->SetNotchHeight(notchHeight(nmeStage->Width()));
+		sgMainView->mStage->SetNotchHeight(notchHeight(sgMainView->mStage->Width()));
 	}
 }
 
