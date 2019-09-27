@@ -1179,7 +1179,7 @@ value nme_get_notch_height_stage(value inValue)
 
    return alloc_int(0);
 }
-DEFINE_PRIM(nme_get_notch_height_stage);
+DEFINE_PRIM(nme_get_notch_height_stage,1);
 
 AutoGCRoot *sOnCreateCallback = 0;
 
